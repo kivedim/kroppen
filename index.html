@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kroppen i 3D</title>
+<meta name="theme-color" content="#e4eaec">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Kroppen">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+/* Layout: anatomy-atlas lightbox. Full-screen WebGL figure on a cool pale ground; top bar + parts index; bottom info card above layer checkboxes */
+:root{
+  --ground:#e4eaec; --ground-2:#d3dde1; --panel:rgba(250,252,252,.92); --line:rgba(29,42,51,.16);
+  --ink:#1d2a33; --ink-dim:#5b6b75; --accent:#0f7c78; --accent-ink:#ffffff; --warm:#b8403a;
+  --font-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --font-body:"Source Sans 3", system-ui, -apple-system, sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%;margin:0;}
+body{background:radial-gradient(120% 80% at 50% 38%, var(--ground) 0%, var(--ground-2) 100%);color:var(--ink);font-family:var(--font-body);overflow:hidden;-webkit-tap-highlight-color:transparent;}
+#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;}
+.ui{position:fixed;inset:0;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;
+  padding-left:max(12px, env(safe-area-inset-left, 0px));padding-right:max(12px, env(safe-area-inset-right, 0px));padding-block:calc(env(safe-area-inset-top, 0px) + 10px) calc(env(safe-area-inset-bottom, 0px) + 10px);}
+.ui > *{pointer-events:auto;}
+.topwrap{display:flex;flex-direction:column;gap:8px;max-width:560px;width:100%;align-self:center;min-height:0;}
+.top{display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 8px 6px 14px;backdrop-filter:blur(6px);}
+.top h1{font:800 18px/1 var(--font-display);margin:0 auto 0 0;}
+.ibtn{height:40px;min-width:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--ink);font:600 15px/1 var(--font-body);cursor:pointer;flex:none;}
+.ibtn[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);}
+.ibtn.live{color:var(--warm);}
+.ibtn.live[aria-pressed="false"]{color:var(--ink-dim);opacity:.6;}
+.card .head{display:flex;align-items:flex-start;gap:10px;}
+.card .head > div{flex:1;min-width:0;}
+.card .lat{margin:3px 0 0;font:italic 400 14px/1.3 var(--font-body);color:var(--ink-dim);}
+.speak{flex:none;width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--accent);display:grid;place-items:center;cursor:pointer;}
+.speak[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:var(--accent);}
+.lang{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex:none;}
+.lang button{height:38px;min-width:38px;padding:0 8px;border:0;background:transparent;color:var(--ink-dim);font:800 13px/1 var(--font-display);letter-spacing:.05em;cursor:pointer;}
+.lang button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);}
+.list{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px 14px 12px;max-height:55vh;overflow-y:auto;backdrop-filter:blur(8px);}
+.list h3{font:800 12px/1 var(--font-display);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-dim);margin:14px 0 8px;display:flex;align-items:center;gap:8px;}
+.list h3 i{width:10px;height:10px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,.25);}
+.list .items{display:flex;flex-wrap:wrap;gap:6px;}
+.list button{padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font:600 14px/1.1 var(--font-body);cursor:pointer;}
+.credit{font-size:12px;line-height:1.4;color:var(--ink-dim);margin:14px 0 0;}
+.credit a{color:var(--accent);}
+.bottom{display:flex;flex-direction:column;gap:8px;max-width:560px;width:100%;align-self:center;}
+.hint{align-self:center;font-size:14px;color:var(--ink-dim);background:var(--panel);padding:6px 12px;border-radius:999px;transition:opacity .6s;text-align:center;border:1px solid var(--line);}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;backdrop-filter:blur(8px);max-height:40vh;overflow-y:auto;}
+.card .kind{display:flex;align-items:center;gap:8px;font:600 12px/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin:0 0 6px;}
+.card .kind i{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,0,0,.25);}
+.card h2{font:800 28px/1.05 var(--font-display);margin:0;text-wrap:balance;}
+.card .desc{margin:8px 0 10px;font-size:16px;line-height:1.5;}
+.card .fun{font-size:15px;line-height:1.5;color:var(--ink-dim);margin:0 0 12px;padding-left:10px;border-left:3px solid var(--warm);}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.actions button{flex:1;min-width:140px;font:600 15px/1 var(--font-body);padding:12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;}
+.actions button[aria-pressed="true"]{background:var(--warm);color:#fff;border-color:var(--warm);}
+.layers{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.layers::-webkit-scrollbar{display:none;}
+.lyr{flex:none;display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink-dim);font:600 14px/1 var(--font-body);cursor:pointer;}
+.lyr .box{width:16px;height:16px;border-radius:5px;border:2px solid currentColor;display:grid;place-items:center;font-size:11px;line-height:1;}
+.lyr[aria-pressed="true"]{color:var(--ink);border-color:rgba(29,42,51,.4);background:#fff;}
+.lyr[aria-pressed="true"] .box{background:var(--c);border-color:rgba(0,0,0,.35);color:#1d2a33;}
+.lyr[aria-pressed="true"] .box::after{content:"✓";font-weight:700;}
+.lyr.xray{border-style:dashed;}
+.loading{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;transition:opacity .5s;}
+.loading div{display:flex;flex-direction:column;align-items:center;gap:10px;font:600 16px var(--font-display);color:var(--ink-dim);}
+.loading .bar{width:180px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;}
+.loading .bar span{display:block;height:100%;width:0;background:var(--accent);transition:width .2s;}
+.loading small{font:400 12px var(--font-body);}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+@media (max-width:400px){.top h1{font-size:16px;}}
+@media (prefers-reduced-motion: reduce){.hint,.loading{transition:none;}}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="3D-modell av människokroppen"></canvas>
+<div class="loading" id="loading"><div><span id="loadTxt">Laddar kroppen…</span><span class="bar"><span id="loadBar"></span></span><small>BodyParts3D © DBCLS · CC BY-SA</small></div></div>
+<div class="ui">
+  <div class="topwrap">
+    <div class="top">
+      <h1 id="ttl">Kroppen</h1>
+      <button class="ibtn" id="listBtn" aria-expanded="false">☰ Delar</button>
+      <button class="ibtn" id="home" aria-label="Visa hela kroppen">⌂</button>
+      <button class="ibtn live" id="live" aria-pressed="true" aria-label="Hjärtslag och andning"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor"/></svg></button>
+      <div class="lang" role="group" aria-label="Språk / Language"><button id="lang-sv" aria-pressed="true">SV</button><button id="lang-en" aria-pressed="false">EN</button></div>
+    </div>
+    <div class="list" id="list" hidden></div>
+  </div>
+  <div class="bottom">
+    <div class="hint" id="hint"></div>
+    <section class="card" id="card" hidden aria-live="polite"></section>
+    <nav class="layers" id="layers"></nav>
+  </div>
+</div>
+
+<script>
+/* ================= content ================= */
+const SYS={skin:['Huden','Integumentary system'],musc:['Muskler','Muscular system'],skel:['Skelettet','Skeletal system'],nerv:['Nervsystemet','Nervous system'],
+ resp:['Andningsorganen','Respiratory system'],dig:['Matsmältningen','Digestive system'],circ:['Hjärta och blodomlopp','Circulatory system'],uri:['Urinvägarna','Urinary system'],
+ endo:['Hormonsystemet','Endocrine system'],imm:['Immunförsvaret','Immune system'],sense:['Sinnesorgan','Sense organs']};
+const LAYERS=[
+ {id:'skin',sv:'Hud',en:'Skin',c:'#e8b896'},{id:'muscle',sv:'Muskler',en:'Muscles',c:'#c9524b'},{id:'skeleton',sv:'Skelett',en:'Skeleton',c:'#efe6d2'},
+ {id:'organs',sv:'Organ',en:'Organs',c:'#eaa9b2'},{id:'nerves',sv:'Nerver',en:'Nerves',c:'#f0cf4a'},{id:'arteries',sv:'Artärer',en:'Arteries',c:'#e0413f'},{id:'veins',sv:'Vener',en:'Veins',c:'#4d72e0'}];
+const INFO={
+ skin:{sys:'skin',sv:['Huden','Kroppens största organ. Den skyddar mot bakterier, håller kvar vätska och hjälper till att reglera kroppstemperaturen.','En vuxen har ungefär 2 kvadratmeter hud, och de yttersta hudcellerna byts ut på ungefär en månad.'],
+  en:['Skin','The body’s largest organ. It protects against germs, keeps fluids in and helps control body temperature.','An adult has about 2 square meters of skin, and the outermost skin cells are replaced in about a month.']},
+ muscles:{sys:'musc',sv:['Musklerna','Kroppen har över 600 skelettmuskler. De kan bara dra, aldrig trycka, så de arbetar ofta i par som drar åt var sitt håll.','Ungefär 40 procent av en vuxens kroppsvikt är muskler.'],
+  en:['Muscles','The body has more than 600 skeletal muscles. They can only pull, never push, so they often work in pairs that pull in opposite directions.','About 40 percent of an adult’s body weight is muscle.']},
+ pectoralis:{sys:'musc',sv:['Stora bröstmuskeln','Stor solfjäderformad muskel på bröstet. Den för armen framåt och in mot kroppen, som när man kramar någon.','Armhävningar tränar framför allt den här muskeln.'],
+  en:['Pectoralis major','A large fan-shaped muscle on the chest. It moves the arm forward and in toward the body, like when you hug someone.','Push-ups mainly train this muscle.']},
+ deltoid:{sys:'musc',sv:['Deltamuskeln','Muskeln som ger axeln dess runda form. Den lyfter armen åt sidan, framåt och bakåt.','Namnet kommer från den grekiska bokstaven delta (Δ), eftersom muskeln är triangelformad.'],
+  en:['Deltoid','The muscle that gives the shoulder its round shape. It lifts the arm to the side, forward and backward.','The name comes from the Greek letter delta (Δ), because the muscle is shaped like a triangle.']},
+ biceps:{sys:'musc',sv:['Biceps','Sitter på framsidan av överarmen och böjer armbågen. Den vrider också underarmen så att handflatan vänds uppåt.','Biceps betyder ”två huvuden”. Muskeln har två fästen uppe vid axeln.'],
+  en:['Biceps','Sits on the front of the upper arm and bends the elbow. It also turns the forearm so the palm faces up.','Biceps means “two heads”. The muscle has two attachments up at the shoulder.']},
+ triceps:{sys:'musc',sv:['Triceps','Sitter på baksidan av överarmen och sträcker armbågen. Den är biceps motspelare.','Triceps är faktiskt större än biceps och utgör ungefär två tredjedelar av överarmens muskler.'],
+  en:['Triceps','Sits on the back of the upper arm and straightens the elbow. It works against the biceps.','The triceps is actually bigger than the biceps and makes up about two thirds of the upper arm’s muscle.']},
+ forearm:{sys:'musc',sv:['Underarmens muskler','Ett tjugotal muskler som styr handleden och fingrarna. Fingrarna har nästan inga egna muskler utan dras i via långa senor, som en marionett.','Rör på fingrarna och känn efter: det är underarmen som jobbar.'],
+  en:['Forearm muscles','About twenty muscles that move the wrist and fingers. The fingers have almost no muscles of their own; they are pulled by long tendons, like a puppet.','Wiggle your fingers and feel your forearm: that is where the work happens.']},
+ rectus:{sys:'musc',sv:['Raka bukmuskeln','Går från bröstkorgen ner till bäckenet och böjer bålen framåt, som när man gör situps.','Senor delar muskeln i rutor. Det är därför man kan få ett ”sexpack”.'],
+  en:['Rectus abdominis','Runs from the rib cage down to the pelvis and bends the trunk forward, like when you do sit-ups.','Tendons divide the muscle into boxes. That is why people can get a “six-pack”.']},
+ obliques:{sys:'musc',sv:['Sneda bukmusklerna','Bukmusklerna på sidorna. De vrider och böjer bålen och hjälper till när man hostar eller skrattar.','Det finns yttre och inre sneda bukmuskler, och deras fibrer korsar varandra som ett X.'],
+  en:['Obliques','The side abdominal muscles. They twist and bend the trunk and help when you cough or laugh.','There are outer and inner obliques, and their fibers cross each other like an X.']},
+ trapezius:{sys:'musc',sv:['Kappmuskeln','Stor, platt muskel på övre ryggen och nacken. Den lyfter axlarna och håller skulderbladen på plats.','Musklerna på båda sidor bildar tillsammans en trapets. Därav det latinska namnet trapezius.'],
+  en:['Trapezius','A large flat muscle on the upper back and neck. It lifts the shoulders and holds the shoulder blades in place.','Together the muscles on both sides form a trapezoid, which gives it its name.']},
+ latissimus:{sys:'musc',sv:['Breda ryggmuskeln','Ryggens bredaste muskel. Den drar armen nedåt och bakåt, som när man klättrar eller simmar.','Latissimus dorsi betyder ”ryggens bredaste” på latin.'],
+  en:['Latissimus dorsi','The widest muscle of the back. It pulls the arm down and back, like when you climb or swim.','Latissimus dorsi is Latin for “widest of the back”.']},
+ gluteus:{sys:'musc',sv:['Stora sätesmuskeln','Kroppens största muskel. Den sträcker höften så att man kan resa sig, gå i trappor och springa.','Den hjälper oss att stå upprätt. Människor har mycket större sätesmuskler än schimpanser.'],
+  en:['Gluteus maximus','The body’s largest muscle. It straightens the hip so you can stand up, climb stairs and run.','It helps us stand upright. Humans have much bigger buttock muscles than chimpanzees.']},
+ quadriceps:{sys:'musc',sv:['Fyrhövdade lårmuskeln','Fyra muskler på lårets framsida som sträcker knät. De behövs för att gå, hoppa och sparka.','Knäskålen sitter inbäddad i den här muskelns sena.'],
+  en:['Quadriceps','Four muscles on the front of the thigh that straighten the knee. You need them to walk, jump and kick.','The kneecap sits inside this muscle’s tendon.']},
+ hamstrings:{sys:'musc',sv:['Baksida lår','Tre muskler på lårets baksida som böjer knät och sträcker höften.','Det är de här som känns spända när man försöker nudda tårna.'],
+  en:['Hamstrings','Three muscles on the back of the thigh that bend the knee and straighten the hip.','These are the ones that feel tight when you try to touch your toes.']},
+ calf:{sys:'musc',sv:['Vadmuskeln','Sitter på underbenets baksida. Den lyfter hälen så att man kan stå på tå och skjuta ifrån när man går.','Den fäster i hälen via akillessenan, kroppens starkaste sena.'],
+  en:['Calf muscle','Sits on the back of the lower leg. It lifts the heel so you can stand on your toes and push off when you walk.','It attaches to the heel through the Achilles tendon, the strongest tendon in the body.']},
+ tibialis:{sys:'musc',sv:['Främre skenbensmuskeln','Muskeln på framsidan av underbenet. Den lyfter fotens framdel så att tårna inte släpar i marken när man går.','Spänn den genom att dra upp tårna mot dig.'],
+  en:['Tibialis anterior','The muscle on the front of the lower leg. It lifts the front of the foot so your toes don’t drag when you walk.','Tighten it by pulling your toes up toward you.']},
+ scm:{sys:'musc',sv:['Nickmuskeln','Går från bakom örat ner till bröstbenet och nyckelbenet. Den vrider och böjer huvudet.','Den syns tydligt på halsen när man vrider huvudet åt sidan.'],
+  en:['Sternocleidomastoid','Runs from behind the ear down to the breastbone and collarbone. It turns and tilts the head.','You can clearly see it on the neck when you turn your head to the side.']},
+ skull:{sys:'skel',sv:['Skallen','Skyddar hjärnan och består av 22 ben som har vuxit ihop, alla utom underkäken.','Hos bebisar har skallbenen inte vuxit ihop än. De mjuka fläckarna kallas fontaneller.'],
+  en:['Skull','Protects the brain and is made of 22 bones that have grown together, all except the lower jaw.','In babies the skull bones haven’t joined yet. The soft spots are called fontanelles.']},
+ mandible:{sys:'skel',sv:['Underkäken','Skallens enda rörliga ben. Den bär de nedre tänderna.','Den är det största och starkaste benet i ansiktet.'],
+  en:['Mandible','The only movable bone of the skull. It holds the lower teeth.','It is the largest and strongest bone in the face.']},
+ spine:{sys:'skel',sv:['Ryggraden','Består av 33 kotor: 7 i halsen, 12 i bröstryggen, 5 i ländryggen samt korsbenet och svanskotan. Den bär kroppen och skyddar ryggmärgen.','Både människor och giraffer har sju halskotor. Giraffens är bara mycket längre.'],
+  en:['Spine','Made of 33 vertebrae: 7 in the neck, 12 in the upper back, 5 in the lower back plus the sacrum and tailbone. It holds the body up and protects the spinal cord.','Humans and giraffes both have seven neck vertebrae. A giraffe’s are just much longer.']},
+ ribs:{sys:'skel',sv:['Revbenen','Bildar en bur som skyddar hjärtat och lungorna. De flesta människor har 12 par.','De två nedersta paren sitter inte fast framtill och kallas fria revben.'],
+  en:['Ribs','Form a cage that protects the heart and lungs. Most people have 12 pairs.','The two lowest pairs aren’t attached at the front and are called floating ribs.']},
+ sternum:{sys:'skel',sv:['Bröstbenet','Ett platt ben mitt på bröstet där de övre revbenen fäster med brosk.','Bröstbenets benmärg tillverkar blodkroppar hela livet.'],
+  en:['Sternum','A flat bone in the middle of the chest where the upper ribs attach with cartilage.','The bone marrow in the sternum makes blood cells throughout life.']},
+ clavicle:{sys:'skel',sv:['Nyckelbenet','Går från bröstbenet till axeln och håller armen ut från kroppen.','Det är ett av de ben som oftast bryts, ofta när man ramlar på en utsträckt arm.'],
+  en:['Collarbone','Runs from the breastbone to the shoulder and holds the arm out from the body.','It is one of the most commonly broken bones, often from falling on an outstretched arm.']},
+ scapula:{sys:'skel',sv:['Skulderbladet','Platt, triangelformat ben på ryggen. Det rör sig fritt och ger axeln dess stora rörlighet.','Skulderbladet sitter bara fast i skelettet via nyckelbenet. Resten hålls på plats av muskler.'],
+  en:['Shoulder blade','A flat triangular bone on the back. It moves freely and gives the shoulder its huge range of motion.','The shoulder blade is only joined to the skeleton through the collarbone. Muscles hold the rest in place.']},
+ pelvis:{sys:'skel',sv:['Bäckenet','Bär överkroppens vikt och för den vidare till benen. Det skyddar också urinblåsan och tarmarna.','Kvinnors bäcken är oftast bredare och rundare än mäns, så att barn kan födas.'],
+  en:['Pelvis','Carries the weight of the upper body and passes it on to the legs. It also protects the bladder and intestines.','Women’s pelvises are usually wider and rounder than men’s, so that babies can be born.']},
+ humerus:{sys:'skel',sv:['Överarmsbenet','Går från axeln till armbågen. Den runda toppen sitter i axelleden.','Den stickande ”tjuvnerv”-känslan i armbågen kommer från en nerv som passerar där, inte från benet.'],
+  en:['Humerus','Runs from the shoulder to the elbow. Its round top sits in the shoulder joint.','The “funny bone” feeling actually comes from a nerve. The name may be a pun on humerus and humorous.']},
+ radius:{sys:'skel',sv:['Strålbenet','Sitter på tumsidan av underarmen. Det kan rotera runt armbågsbenet så att handflatan vänds.','Det är det ben som oftast bryts vid en handledsfraktur.'],
+  en:['Radius','On the thumb side of the forearm. It can rotate around the ulna to turn the palm.','It is the bone most often broken in a wrist fracture.']},
+ ulna:{sys:'skel',sv:['Armbågsbenet','Sitter på lillfingersidan av underarmen. Dess övre ände är den spetsiga knölen i armbågen.','Det du stöder armbågen mot bordet med är armbågsbenet.'],
+  en:['Ulna','On the little-finger side of the forearm. Its top end is the pointy bump of your elbow.','When you lean your elbow on a table, you are resting on your ulna.']},
+ hand:{sys:'skel',sv:['Handens ben','Handen och handleden har 27 ben. Det gör handen otroligt rörlig och exakt.','Händer och fötter innehåller tillsammans över hälften av kroppens 206 ben.'],
+  en:['Hand bones','The hand and wrist have 27 bones. That makes the hand incredibly flexible and precise.','Hands and feet together contain more than half of the body’s 206 bones.']},
+ femur:{sys:'skel',sv:['Lårbenet','Kroppens längsta och starkaste ben. Det går från höften till knät.','Ett lårben är ungefär en fjärdedel av en människas längd.'],
+  en:['Femur','The longest and strongest bone in the body. It runs from the hip to the knee.','A femur is about a quarter of a person’s height.']},
+ patella:{sys:'skel',sv:['Knäskålen','Ett litet ben framför knät som skyddar leden och ger lårmusklerna bättre hävstång.','Bebisar föds med knäskålar av brosk som blir ben först efter några år.'],
+  en:['Kneecap','A small bone in front of the knee that protects the joint and gives the thigh muscles better leverage.','Babies are born with kneecaps made of cartilage that only turn to bone after a few years.']},
+ tibia:{sys:'skel',sv:['Skenbenet','Underbenets kraftiga ben som bär nästan all vikt. Det ligger precis under huden på framsidan.','Därför gör det så ont att slå i smalbenet: det finns nästan inget skydd över benet.'],
+  en:['Tibia','The strong bone of the lower leg that carries almost all the weight. It lies just under the skin at the front.','That is why banging your shin hurts so much: there is almost nothing protecting the bone.']},
+ fibula:{sys:'skel',sv:['Vadbenet','Det smala benet på utsidan av underbenet. Det bär lite vikt men är fäste för muskler och stabiliserar fotleden.','Den yttre knölen på fotleden är vadbenets nedre ände.'],
+  en:['Fibula','The thin bone on the outside of the lower leg. It carries little weight but anchors muscles and steadies the ankle.','The bump on the outside of your ankle is the bottom end of the fibula.']},
+ foot:{sys:'skel',sv:['Fotens ben','Foten har 26 ben. Den bär hela kroppens vikt och fungerar som stötdämpare.','Hälbenet är fotens största ben.'],
+  en:['Foot bones','The foot has 26 bones. It carries the whole body’s weight and works as a shock absorber.','The heel bone is the largest bone in the foot.']},
+ brain:{sys:'nerv',sv:['Hjärnan','Styr allt kroppen gör: tankar, minne, känslor, rörelser och sinnen. Den väger ungefär 1,3–1,4 kg hos en vuxen.','Hjärnan har runt 86 miljarder nervceller och använder ungefär en femtedel av kroppens energi.'],
+  en:['Brain','Controls everything the body does: thoughts, memory, feelings, movement and senses. It weighs about 1.3–1.4 kg in an adult.','The brain has around 86 billion nerve cells and uses about a fifth of the body’s energy.']},
+ cerebellum:{sys:'nerv',sv:['Lillhjärnan','Sitter längst bak under storhjärnan och samordnar rörelser och balans.','Fast den är liten innehåller den mer än hälften av hjärnans nervceller.'],
+  en:['Cerebellum','Sits at the back below the main brain and coordinates movement and balance.','Although it is small, it contains more than half of the brain’s nerve cells.']},
+ eyes:{sys:'sense',sv:['Ögonen','Tar in ljus och gör om det till nervsignaler som hjärnan tolkar som bilder.','Bilden på näthinnan är upp och ner. Hjärnan vänder på den.'],
+  en:['Eyes','Take in light and turn it into nerve signals that the brain reads as pictures.','The image on the retina is upside down. The brain flips it.']},
+ thyroid:{sys:'endo',sv:['Sköldkörteln','Fjärilsformad körtel framtill på halsen. Dess hormoner styr hur snabbt kroppen förbrukar energi.','Den behöver jod för att kunna tillverka sina hormoner.'],
+  en:['Thyroid','A butterfly-shaped gland at the front of the neck. Its hormones control how fast the body uses energy.','It needs iodine to make its hormones.']},
+ trachea:{sys:'resp',sv:['Luftstrupen','Leder luft från halsen ner till lungorna. Den hålls öppen av C-formade broskringar och delar sig i två luftrör.','Du kan känna broskringarna om du försiktigt känner på halsens framsida.'],
+  en:['Windpipe (trachea)','Carries air from the throat down to the lungs. C-shaped rings of cartilage keep it open, and it splits into two bronchi.','You can feel the cartilage rings if you gently touch the front of your neck.']},
+ esophagus:{sys:'dig',sv:['Matstrupen','En muskelslang som för maten från svalget ner till magsäcken med vågliknande rörelser.','Maten kommer fram även om man står på huvudet, tack vare de här muskelvågorna.'],
+  en:['Esophagus','A muscular tube that moves food from the throat down to the stomach with wave-like squeezes.','Food gets there even if you stand on your head, thanks to these muscle waves.']},
+ lungR:{sys:'resp',sv:['Höger lunga','Lite större än den vänstra och har tre lober. I lungorna tas syre upp i blodet och koldioxid lämnas ut.','Lungorna har hundratals miljoner små lungblåsor. Utbredda skulle de täcka ungefär en halv tennisbana.'],
+  en:['Right lung','Slightly bigger than the left and has three lobes. In the lungs oxygen goes into the blood and carbon dioxide comes out.','The lungs have hundreds of millions of tiny air sacs. Spread out, they would cover about half a tennis court.']},
+ lungL:{sys:'resp',sv:['Vänster lunga','Har två lober och är lite mindre för att ge plats åt hjärtat.','Inbuktningen där hjärtat ligger kallas hjärtinbuktningen.'],
+  en:['Left lung','Has two lobes and is a bit smaller to make room for the heart.','The dent where the heart sits is called the cardiac notch.']},
+ heart:{sys:'circ',sv:['Hjärtat','En muskel som pumpar blod genom kroppen. Det har fyra rum: två förmak och två kammare.','Det slår ungefär 100 000 gånger per dygn och är ungefär lika stort som en knuten näve.'],
+  en:['Heart','A muscle that pumps blood around the body. It has four chambers: two atria and two ventricles.','It beats about 100,000 times a day and is roughly the size of a clenched fist.']},
+ diaphragm:{sys:'resp',sv:['Mellangärdet','En kupolformad muskel under lungorna. När den drar ihop sig sugs luft in i lungorna.','Hicka är små plötsliga ryck i mellangärdet.'],
+  en:['Diaphragm','A dome-shaped muscle under the lungs. When it tightens, air is pulled into the lungs.','Hiccups are small sudden jerks of the diaphragm.']},
+ liver:{sys:'dig',sv:['Levern','Det största inre organet. Den renar blodet, lagrar näring och tillverkar galla som hjälper till att bryta ner fett.','Levern kan växa tillbaka även om en stor del av den tas bort.'],
+  en:['Liver','The largest internal organ. It cleans the blood, stores nutrients and makes bile that helps break down fat.','The liver can grow back even if a large part of it is removed.']},
+ gallbladder:{sys:'dig',sv:['Gallblåsan','En liten påse under levern som lagrar galla och släpper ut den i tarmen när man äter fet mat.','Man kan leva utan gallblåsa. Då rinner gallan direkt från levern.'],
+  en:['Gallbladder','A small pouch under the liver that stores bile and releases it into the gut when you eat fatty food.','You can live without a gallbladder. The bile then flows straight from the liver.']},
+ stomach:{sys:'dig',sv:['Magsäcken','Tar emot maten, blandar den och bryter ner den med syra och enzymer.','Magsyran är så stark att magen måste skydda sig själv med ett lager slem.'],
+  en:['Stomach','Receives food, churns it and breaks it down with acid and enzymes.','Stomach acid is so strong that the stomach has to protect itself with a layer of mucus.']},
+ spleen:{sys:'imm',sv:['Mjälten','Sitter till vänster bakom magsäcken. Den filtrerar blodet, tar bort gamla röda blodkroppar och hjälper immunförsvaret.','Man kan leva utan mjälte, men blir lite känsligare för vissa infektioner.'],
+  en:['Spleen','Sits on the left behind the stomach. It filters the blood, removes old red blood cells and helps the immune system.','You can live without a spleen, but you become a bit more vulnerable to some infections.']},
+ pancreas:{sys:'dig',sv:['Bukspottkörteln','Tillverkar matsmältningsenzymer och hormonet insulin som styr blodsockret.','Den är både en matsmältningskörtel och en hormonkörtel på samma gång.'],
+  en:['Pancreas','Makes digestive enzymes and the hormone insulin, which controls blood sugar.','It is both a digestive gland and a hormone gland at the same time.']},
+ kidneys:{sys:'uri',sv:['Njurarna','Filtrerar blodet och gör urin av överblivet vatten och slaggprodukter. Den högra sitter lite lägre, under levern.','Tillsammans filtrerar de ungefär 180 liter vätska per dygn.'],
+  en:['Kidneys','Filter the blood and turn extra water and waste into urine. The right one sits a little lower, under the liver.','Together they filter about 180 liters of fluid every day.']},
+ adrenal:{sys:'endo',sv:['Binjurarna','Sitter som små mössor ovanpå njurarna och tillverkar bland annat adrenalin och kortisol.','Adrenalin gör att hjärtat slår snabbare när man blir rädd eller spänd.'],
+  en:['Adrenal glands','Sit like little caps on top of the kidneys and make hormones such as adrenaline and cortisol.','Adrenaline makes your heart beat faster when you get scared or excited.']},
+ ureters:{sys:'uri',sv:['Urinledarna','Två tunna rör som för urin från njurarna ner till urinblåsan.','Urinen trycks fram med små muskelvågor, inte bara med tyngdkraften.'],
+  en:['Ureters','Two thin tubes that carry urine from the kidneys down to the bladder.','Urine is pushed along by small muscle waves, not just by gravity.']},
+ bladder:{sys:'uri',sv:['Urinblåsan','En töjbar påse som samlar urin tills det är dags att gå på toaletten.','Hos en vuxen rymmer den ungefär en halv liter.'],
+  en:['Bladder','A stretchy bag that collects urine until it is time to go to the toilet.','In an adult it holds about half a liter.']},
+ smallInt:{sys:'dig',sv:['Tunntarmen','Här tas det mesta av näringen upp i blodet. Den är lång och ligger hopvikt i buken.','Den är ungefär 6–7 meter lång.'],
+  en:['Small intestine','This is where most nutrients are absorbed into the blood. It is long and folded up in the belly.','It is about 6–7 meters long.']},
+ largeInt:{sys:'dig',sv:['Tjocktarmen','Tar upp vatten och salter från det som är kvar av maten och formar avföring. Här lever biljoner nyttiga bakterier.','Den är ungefär 1,5 meter lång men mycket bredare än tunntarmen.'],
+  en:['Large intestine','Absorbs water and salts from what is left of the food and forms poop. Trillions of helpful bacteria live here.','It is about 1.5 meters long but much wider than the small intestine.']},
+ appendix:{sys:'dig',sv:['Blindtarmsbihanget','En liten, smal utbuktning från tjocktarmen. Den kan bli inflammerad och behöva opereras bort.','Forskare tror att den kan fungera som ett förråd för goda tarmbakterier.'],
+  en:['Appendix','A small, narrow pouch off the large intestine. It can get inflamed and need to be removed.','Scientists think it may work as a storage place for good gut bacteria.']},
+ spinalCord:{sys:'nerv',sv:['Ryggmärgen','En tjock nervsträng inuti ryggraden som skickar signaler mellan hjärnan och resten av kroppen.','Vissa reflexer, som att dra bort handen från något hett, styrs direkt av ryggmärgen innan hjärnan hunnit reagera.'],
+  en:['Spinal cord','A thick bundle of nerves inside the spine that carries signals between the brain and the rest of the body.','Some reflexes, like pulling your hand away from something hot, are handled by the spinal cord before the brain has time to react.']},
+ armNerves:{sys:'nerv',sv:['Armens nerver','Medianusnerven och radialisnerven kommer från halsens del av ryggmärgen. De styr armens muskler och ger känsel i huden.','Medianusnerven kan klämmas i handleden. Det kallas karpaltunnelsyndrom.'],
+  en:['Arm nerves','The median and radial nerves come from the neck part of the spinal cord. They control the arm’s muscles and give feeling to the skin.','The median nerve can get squeezed at the wrist. That is called carpal tunnel syndrome.']},
+ ulnar:{sys:'nerv',sv:['Ulnarisnerven','Går längs lillfingersidan av armen och passerar strax under huden vid armbågen.','Det är den som gör att det stickar i lillfingret när man slår i ”tjuvnerven”.'],
+  en:['Ulnar nerve','Runs along the little-finger side of the arm and passes just under the skin at the elbow.','It is what makes your little finger tingle when you hit your “funny bone”.']},
+ sciatic:{sys:'nerv',sv:['Ischiasnerven','Kroppens tjockaste och längsta nerv. Den går från ländryggen genom skinkan och ner längs benets baksida.','Där den är som tjockast är den ungefär lika bred som en tumme.'],
+  en:['Sciatic nerve','The thickest and longest nerve in the body. It runs from the lower back through the buttock and down the back of the leg.','At its thickest it is about as wide as a thumb.']},
+ femoral:{sys:'nerv',sv:['Lårnerven','Går ner längs lårets framsida och styr musklerna som sträcker knät.','Den ger också känsel på lårets framsida och på insidan av underbenet.'],
+  en:['Femoral nerve','Runs down the front of the thigh and controls the muscles that straighten the knee.','It also gives feeling to the front of the thigh and the inside of the lower leg.']},
+ vagus:{sys:'nerv',sv:['Vagusnerven','Går från hjärnstammen ner till hjärta, lungor och mage. Den hjälper kroppen att varva ner efter stress.','”Vagus” betyder ”vandrande” på latin. Den slingrar sig genom stora delar av kroppen.'],
+  en:['Vagus nerve','Runs from the brainstem down to the heart, lungs and stomach. It helps the body calm down after stress.','“Vagus” is Latin for “wandering”. It winds through large parts of the body.']},
+ aorta:{sys:'circ',sv:['Aortan','Kroppens största artär. Den leder syrerikt blod från hjärtat ut till hela kroppen.','Hos en vuxen är den ungefär lika tjock som en trädgårdsslang.'],
+  en:['Aorta','The body’s largest artery. It carries oxygen-rich blood from the heart out to the whole body.','In an adult it is about as thick as a garden hose.']},
+ carotid:{sys:'circ',sv:['Halspulsådrorna','För blod till huvudet och hjärnan.','Det är här man känner pulsen på sidan av halsen.'],
+  en:['Carotid arteries','Carry blood to the head and brain.','This is where you can feel your pulse on the side of your neck.']},
+ armArtery:{sys:'circ',sv:['Armens artärer','För syrerikt blod ut i armen och handen.','Pulsen vid handleden känns i strålbensartären, på tumsidan.'],
+  en:['Arm arteries','Carry oxygen-rich blood out to the arm and hand.','The pulse at your wrist is felt in the radial artery, on the thumb side.']},
+ femoralA:{sys:'circ',sv:['Benets artärer','Höftartären och lårartären för blod ner genom benet till foten.','Man kan känna pulsen i ljumsken där lårartären passerar.'],
+  en:['Leg arteries','The iliac and femoral arteries carry blood down through the leg to the foot.','You can feel a pulse in the groin where the femoral artery passes.']},
+ pulmonary:{sys:'circ',sv:['Lungpulsådern','För syrefattigt blod från hjärtat till lungorna. Därför är den blå här, fast den är en artär.','Det är den enda stora artären som för syrefattigt blod.'],
+  en:['Pulmonary artery','Carries oxygen-poor blood from the heart to the lungs. That is why it is blue here, even though it is an artery.','It is the only major artery that carries oxygen-poor blood.']},
+ venaCava:{sys:'circ',sv:['Hålvenerna','Kroppens största vener. Den övre och den nedre för tillbaka syrefattigt blod till hjärtat.','Blod är alltid rött. Vener ritas blå bara för att skilja dem från artärer.'],
+  en:['Venae cavae','The body’s largest veins. The upper and lower one bring oxygen-poor blood back to the heart.','Blood is always red. Veins are drawn blue just to tell them apart from arteries.']},
+ jugular:{sys:'circ',sv:['Halsvenerna','För blod tillbaka från huvudet och hjärnan.','Ibland syns den yttre halsvenen när någon sjunger eller skriker.'],
+  en:['Jugular veins','Bring blood back from the head and brain.','Sometimes you can see the outer jugular vein when someone sings or shouts.']},
+ armVein:{sys:'circ',sv:['Armens vener','För tillbaka blodet från handen och armen.','Det är oftast i en ven i armvecket man tar blodprov.'],
+  en:['Arm veins','Bring blood back from the hand and arm.','Blood tests are usually taken from a vein in the crook of the elbow.']},
+ legVein:{sys:'circ',sv:['Benets vener','För blodet uppåt tillbaka till hjärtat, med hjälp av små klaffar och vadmusklerna.','Stora vena saphena på benets insida är kroppens längsta ven.'],
+  en:['Leg veins','Carry blood upward back to the heart, helped by tiny valves and the calf muscles.','The great saphenous vein on the inside of the leg is the longest vein in the body.']}
+};
+Object.assign(INFO,{
+ hyoid:{sys:'skel',sv:['Tungbenet','Ett hästskoformat ben högt upp på halsen. Det sitter inte ihop med något annat ben utan hålls på plats av muskler.','Tungan och struphuvudet hänger i tungbenet. Det hjälper till när man sväljer och pratar.'],
+  en:['Hyoid bone','A horseshoe-shaped bone high in the neck. It isn’t joined to any other bone and is held in place by muscles.','The tongue and voice box hang from the hyoid. It helps you swallow and speak.']},
+ discs:{sys:'skel',sv:['Mellankotskivorna','Stötdämpande skivor av brosk mellan kotorna. De gör ryggen böjlig.','På morgonen är man upp till en centimeter längre än på kvällen, eftersom skivorna trycks ihop under dagen.'],
+  en:['Intervertebral discs','Shock-absorbing pads of cartilage between the vertebrae. They make the back flexible.','You are up to a centimeter taller in the morning than in the evening, because the discs get squeezed during the day.']},
+ costalCartilage:{sys:'skel',sv:['Revbensbrosket','Brosk som fäster revbenen i bröstbenet. Det är böjligt så att bröstkorgen kan vidgas när man andas.','Med åren kan brosket förbenas och bli stelare.'],
+  en:['Costal cartilage','Cartilage that joins the ribs to the breastbone. It is bendy so the chest can expand when you breathe.','With age the cartilage can turn partly to bone and get stiffer.']},
+ brainstem:{sys:'nerv',sv:['Hjärnstammen','Förbinder hjärnan med ryggmärgen. Den består av mitthjärnan, hjärnbryggan och förlängda märgen.','Hjärnstammen sköter livsviktiga saker automatiskt, som andning, hjärtrytm och att man vaknar.'],
+  en:['Brainstem','Connects the brain to the spinal cord. It is made of the midbrain, pons and medulla oblongata.','The brainstem runs vital things automatically, like breathing, heartbeat and waking up.']},
+ pituitary:{sys:'endo',sv:['Hypofysen','En ärtstor körtel under hjärnan som styr många av kroppens andra hormonkörtlar.','Den tillverkar bland annat tillväxthormon, som får barn att växa.'],
+  en:['Pituitary gland','A pea-sized gland under the brain that controls many of the body’s other hormone glands.','Among other things it makes growth hormone, which makes children grow.']},
+ tongue:{sys:'dig',sv:['Tungan','En muskel som flyttar runt maten i munnen, hjälper till att svälja och formar ljud när man pratar.','Tungan har tusentals smaklökar och kan känna sött, salt, surt, beskt och umami.'],
+  en:['Tongue','A muscle that moves food around the mouth, helps you swallow and shapes sounds when you speak.','The tongue has thousands of taste buds and can sense sweet, salty, sour, bitter and umami.']},
+ salivary:{sys:'dig',sv:['Spott- och tårkörtlar','Underkäksspottkörtlarna gör saliv som fuktar maten och börjar bryta ner stärkelse. Tårkörtlarna ovanför ögonen håller ögonen fuktiga.','Man producerar ungefär en liter saliv per dygn.'],
+  en:['Salivary and tear glands','The submandibular glands make saliva that moistens food and starts breaking down starch. The tear glands above the eyes keep the eyes moist.','You make about a liter of saliva every day.']},
+ thymus:{sys:'imm',sv:['Brässen (tymus)','Sitter bakom bröstbenet. Här tränas T-celler, en sorts vita blodkroppar som är viktiga för immunförsvaret.','Brässen är som störst i barndomen och krymper sedan successivt efter puberteten.'],
+  en:['Thymus','Sits behind the breastbone. This is where T cells, a type of white blood cell important for immunity, are trained.','The thymus is largest in childhood and slowly shrinks after puberty.']},
+ airways:{sys:'resp',sv:['Luftvägarna','Luftstrupen delar sig i två huvudbronker, och de grenar sig sedan som ett upp-och-nervänt träd ut i lungorna.','Bronkträdet delar sig drygt 20 gånger innan luften når de små lungblåsorna.'],
+  en:['Airways','The windpipe splits into two main bronchi, which branch like an upside-down tree out into the lungs.','The bronchial tree splits more than 20 times before the air reaches the tiny air sacs.']},
+ prostate:{sys:'uri',sv:['Prostata','En körtel hos män, strax under urinblåsan, som omger urinröret.','Den är ungefär lika stor som en valnöt.'],
+  en:['Prostate','A gland in men, just below the bladder, that surrounds the urethra.','It is about the size of a walnut.']},
+ pectMinor:{sys:'musc',sv:['Lilla bröstmuskeln','Ligger under stora bröstmuskeln och drar skulderbladet framåt och nedåt.','Den hjälper också till att lyfta revbenen när man andas in djupt.'],
+  en:['Pectoralis minor','Lies under the pectoralis major and pulls the shoulder blade forward and down.','It also helps lift the ribs when you take a deep breath.']},
+ serratus:{sys:'musc',sv:['Främre sågmuskeln','Fäster med flikar på revbenen, som tänderna på en såg, och håller skulderbladet mot bröstkorgen.','Den kallas ibland ”boxarmuskeln” eftersom den används när man slår ett rakt slag.'],
+  en:['Serratus anterior','Attaches to the ribs with finger-like strips, like the teeth of a saw, and holds the shoulder blade against the rib cage.','It is sometimes called the “boxer’s muscle” because it is used to throw a straight punch.']},
+ rhomboids:{sys:'musc',sv:['Rombmusklerna','Mellan ryggraden och skulderbladen. De drar ihop skulderbladen bakåt.','Det är de här man använder när man sträcker på sig och drar axlarna bakåt.'],
+  en:['Rhomboids','Between the spine and the shoulder blades. They pull the shoulder blades back together.','These are the ones you use when you stand up straight and pull your shoulders back.']},
+ levScap:{sys:'musc',sv:['Skulderbladslyftaren','Går från halskotorna ner till skulderbladet och lyfter det, som när man rycker på axlarna.','Den blir ofta spänd och öm när man sitter länge framför en skärm.'],
+  en:['Levator scapulae','Runs from the neck vertebrae down to the shoulder blade and lifts it, like when you shrug.','It often gets tight and sore when you sit in front of a screen for a long time.']},
+ psoas:{sys:'musc',sv:['Stora ländmuskeln','En djup muskel som går från ländryggen genom bäckenet till lårbenet. Den lyfter benet framåt.','Den är en av få muskler som förbinder ryggraden direkt med benen.'],
+  en:['Psoas major','A deep muscle that runs from the lower back through the pelvis to the thighbone. It lifts the leg forward.','It is one of the few muscles that connects the spine directly to the legs.']},
+ piriformis:{sys:'musc',sv:['Päronformade muskeln','En liten djup muskel i sätet som vrider höften utåt.','Ischiasnerven passerar strax under den, och en spänd piriformis kan klämma nerven.'],
+  en:['Piriformis','A small deep muscle in the buttock that turns the hip outward.','The sciatic nerve passes just beneath it, and a tight piriformis can squeeze the nerve.']},
+ brachialis:{sys:'musc',sv:['Armbågsböjaren','Ligger under biceps och är den starkaste böjaren av armbågen.','Den jobbar alltid när man böjer armen, oavsett hur handen är vänd.'],
+  en:['Brachialis','Lies under the biceps and is the strongest bender of the elbow.','It always works when you bend your arm, no matter which way your hand faces.']},
+ itTract:{sys:'musc',sv:['Höftbensbandet','En lång, tålig senplatta längs lårets utsida, från höften till knät.','Löpare kan få ont här om bandet skaver mot knät, så kallat löparknä.'],
+  en:['Iliotibial band','A long, tough band of tendon tissue along the outside of the thigh, from hip to knee.','Runners can get pain here if the band rubs against the knee, called runner’s knee.']},
+ eyeMuscles:{sys:'musc',sv:['Ögonmusklerna','Sex små muskler per öga som vrider ögongloben åt alla håll, plus en som lyfter ögonlocket.','Ögonmusklerna är bland de snabbaste musklerna i kroppen.'],
+  en:['Eye muscles','Six small muscles per eye that turn the eyeball in every direction, plus one that lifts the eyelid.','The eye muscles are among the fastest muscles in the body.']},
+ coronary:{sys:'circ',sv:['Kranskärlen','Artärerna som ligger som en krona runt hjärtat och förser själva hjärtmuskeln med syrerikt blod.','Om ett kranskärl täpps till kan man få en hjärtinfarkt.'],
+  en:['Coronary arteries','The arteries that wrap around the heart like a crown and supply the heart muscle itself with oxygen-rich blood.','If a coronary artery gets blocked, it can cause a heart attack.']},
+ pulmonaryArt:{sys:'circ',sv:['Lungartärerna','För syrefattigt blod från hjärtat ut i lungorna. Därför är de blå här, fast de är artärer.','De grenar sig parallellt med luftrören ända ut till lungblåsorna.'],
+  en:['Pulmonary arteries','Carry oxygen-poor blood from the heart out into the lungs. That is why they are blue here, even though they are arteries.','They branch alongside the airways all the way out to the air sacs.']},
+ pulmonaryVeins:{sys:'circ',sv:['Lungvenerna','För syrerikt blod från lungorna tillbaka till hjärtat. Därför är de röda, fast de är vener.','Det är de enda venerna i kroppen som för syrerikt blod.'],
+  en:['Pulmonary veins','Carry oxygen-rich blood from the lungs back to the heart. That is why they are red, even though they are veins.','They are the only veins in the body that carry oxygen-rich blood.']},
+ brainArt:{sys:'circ',sv:['Hjärnans artärer','Halsartärerna och kotartärerna möts under hjärnan i en ring och grenar sig sedan ut över hela hjärnan.','Hjärnan är bara 2 procent av kroppsvikten men får ungefär 15 procent av blodet.'],
+  en:['Brain arteries','The carotid and vertebral arteries meet under the brain in a ring and then branch out over the whole brain.','The brain is only 2 percent of body weight but gets about 15 percent of the blood.']},
+ gutArt:{sys:'circ',sv:['Tarmarnas och bukens artärer','Grenar från aortan som för blod till magsäck, lever, mjälte, bukspottkörtel och tarmar.','Efter en stor måltid går ungefär en fjärdedel av hjärtats blod till matsmältningen.'],
+  en:['Gut and abdominal arteries','Branches of the aorta that bring blood to the stomach, liver, spleen, pancreas and intestines.','After a big meal about a quarter of the heart’s output goes to digestion.']},
+ renalArt:{sys:'circ',sv:['Njurartärerna','Korta, kraftiga artärer från aortan till njurarna.','Ungefär en femtedel av allt blod hjärtat pumpar går genom njurarna.'],
+  en:['Renal arteries','Short, wide arteries from the aorta to the kidneys.','About a fifth of all the blood the heart pumps passes through the kidneys.']},
+ legArt:{sys:'circ',sv:['Benens artärer','Höftartärerna, lårartären och knäartären för blod ner genom benet till foten.','Man kan känna pulsen i ljumsken, bakom knät och på fotryggen.'],
+  en:['Leg arteries','The iliac, femoral and popliteal arteries carry blood down through the leg to the foot.','You can feel a pulse in the groin, behind the knee and on top of the foot.']},
+ armArt:{sys:'circ',sv:['Armarnas artärer','Från nyckelbensartären under nyckelbenet via överarmsartären till strålbens- och armbågsartärerna i underarmen.','Pulsen vid handleden känns i strålbensartären, på tumsidan.'],
+  en:['Arm arteries','From the subclavian artery under the collarbone, through the brachial artery, to the radial and ulnar arteries in the forearm.','The pulse at your wrist is felt in the radial artery, on the thumb side.']},
+ trunkArt:{sys:'circ',sv:['Bröst- och bukväggens artärer','Bland annat inre bröstartären bakom revbensbrosket och artärerna i bukväggen.','Inre bröstartären används ofta vid bypassoperationer av hjärtat.'],
+  en:['Chest and abdominal wall arteries','Including the internal thoracic artery behind the rib cartilage and the arteries of the belly wall.','The internal thoracic artery is often used in heart bypass surgery.']},
+ cardiacVeins:{sys:'circ',sv:['Hjärtats vener','Samlar upp blodet från hjärtmuskeln och tömmer det i den stora venen sinus coronarius.','Hjärtmuskeln förbrukar mer syre per gram än nästan något annat organ.'],
+  en:['Cardiac veins','Collect blood from the heart muscle and empty it into a large vein called the coronary sinus.','The heart muscle uses more oxygen per gram than almost any other organ.']},
+ portal:{sys:'circ',sv:['Portådern och levervenerna','Portådern för näringsrikt blod från tarmarna till levern. Levervenerna för det renade blodet vidare till hjärtat.','Allt du äter passerar levern innan det når resten av kroppen.'],
+  en:['Portal and hepatic veins','The portal vein carries nutrient-rich blood from the gut to the liver. The hepatic veins carry the cleaned blood on to the heart.','Everything you eat passes through the liver before it reaches the rest of the body.']},
+ trunkVeins:{sys:'circ',sv:['Bålens vener','Bland annat njurvenerna, binjurevenerna och venerna från mellangärdet.','Vänster njurven är längre än den högra eftersom hålvenen ligger på höger sida.'],
+  en:['Trunk veins','Including the renal veins, adrenal veins and veins from the diaphragm.','The left renal vein is longer than the right because the vena cava lies on the right side.']}
+});
+INFO.legVein[ 'sv'][0]='Bäckenets och benens vener';INFO.legVein.en[0]='Pelvic and leg veins';
+INFO.armVein.sv[1]='Huvudvenerna på armens yt- och djupsida för tillbaka blodet från handen och armen.';
+
+Object.assign(INFO,{
+ hair:{sys:'skin',sv:['Håret','Hår växer ur små fickor i huden som kallas hårsäckar. Ögonbrynen hindrar svett från att rinna ner i ögonen.','Man har ungefär 100 000 hårstrån på huvudet, och de växer cirka en centimeter i månaden.'],
+  en:['Hair','Hair grows from tiny pockets in the skin called hair follicles. Eyebrows stop sweat from running into your eyes.','You have about 100,000 hairs on your head, and they grow about a centimeter a month.']},
+ teeth:{sys:'dig',sv:['Tänderna','Vuxna har 32 tänder: framtänder som biter av, hörntänder som river och kindtänder som maler maten.','Tandemaljen är det hårdaste ämnet i hela kroppen. Barn har 20 mjölktänder.'],
+  en:['Teeth','Adults have 32 teeth: front teeth that bite, pointed teeth that tear and back teeth that grind food.','Tooth enamel is the hardest material in the whole body. Children have 20 baby teeth.']},
+ larynx:{sys:'resp',sv:['Struphuvudet','Sitter överst på luftstrupen. Här finns stämbanden som vibrerar när man pratar och sjunger. Struplocket stänger luftvägen när man sväljer.','Adamsäpplet är en knöl av brosk på struphuvudets framsida.'],
+  en:['Voice box','Sits at the top of the windpipe. It holds the vocal cords, which vibrate when you talk and sing. The epiglottis closes the airway when you swallow.','The Adam’s apple is a bump of cartilage on the front of the voice box.']},
+ lungs:{sys:'resp',sv:['Lungorna','Två svampiga organ som fyller nästan hela bröstkorgen. När man andas in tas syre upp i blodet, och när man andas ut lämnar koldioxiden kroppen.','Man andas ungefär 20 000 gånger per dygn. Den högra lungan har tre lober och den vänstra två, för att ge plats åt hjärtat.'],
+  en:['Lungs','Two spongy organs that fill almost the whole chest. When you breathe in, oxygen goes into the blood, and when you breathe out, carbon dioxide leaves the body.','You breathe about 20,000 times a day. The right lung has three lobes and the left has two, to make room for the heart.']},
+ opticNerve:{sys:'nerv',sv:['Synnerven','Kopplar ihop ögat med hjärnan. Den skickar allt ögat ser som elektriska signaler.','Där synnerven lämnar ögat finns en blind fläck, men hjärnan fyller i den så att man aldrig märker den.'],
+  en:['Optic nerve','Connects the eye to the brain. It sends everything the eye sees as electrical signals.','Where the optic nerve leaves the eye there is a blind spot, but the brain fills it in so you never notice.']},
+ handMuscles:{sys:'musc',sv:['Handens muskler','Små muskler i handflatan som sprider fingrarna och rör tummen på finliga sätt.','Tummen kan nå alla andra fingrar. Det är därför vi kan hålla i en penna.'],
+  en:['Hand muscles','Small muscles in the palm that spread the fingers and move the thumb in fine ways.','Your thumb can reach every other finger. That is why you can hold a pencil.']},
+ rotatorCuff:{sys:'musc',sv:['Axelns muskler','Fyra muskler runt skulderbladet som håller överarmen på plats i axelleden och vrider armen.','Axelleden är kroppens rörligaste led. Den kan snurra nästan ett helt varv.'],
+  en:['Shoulder muscles','Four muscles around the shoulder blade that hold the upper arm in the shoulder joint and turn the arm.','The shoulder is the most movable joint in the body. It can turn almost a full circle.']},
+ intercostals:{sys:'musc',sv:['Muskler mellan revbenen','Små muskler mellan revbenen som lyfter och sänker bröstkorgen när man andas.','De jobbar ihop med mellangärdet, särskilt när man andas djupt eller springer.'],
+  en:['Rib muscles','Small muscles between the ribs that lift and lower the chest when you breathe.','They work together with the diaphragm, especially when you breathe deeply or run.']},
+ backMuscles:{sys:'musc',sv:['Ryggmusklerna','Långa muskler längs ryggraden som håller ryggen rak och böjer den bakåt.','Utan dem skulle man falla ihop framåt. De jobbar hela tiden när man sitter och står.'],
+  en:['Back muscles','Long muscles along the spine that keep the back straight and bend it backward.','Without them you would flop forward. They work all the time when you sit and stand.']},
+ neckMuscles:{sys:'musc',sv:['Halsens muskler','Muskler som håller upp huvudet, hjälper till att svälja och rör tungbenet och struphuvudet.','Huvudet väger ungefär lika mycket som en bowlingklot, så halsmusklerna har mycket att bära.'],
+  en:['Neck muscles','Muscles that hold up the head, help you swallow and move the hyoid bone and voice box.','Your head weighs about as much as a bowling ball, so the neck muscles have a lot to carry.']},
+ adductors:{sys:'musc',sv:['Lårets insida','Muskler på insidan av låret som drar ihop benen.','Ryttare använder dem mycket för att klämma fast sig på hästen.'],
+  en:['Inner thigh muscles','Muscles on the inside of the thigh that pull the legs together.','Horse riders use them a lot to grip the horse.']},
+ sartorius:{sys:'musc',sv:['Skräddarmuskeln','Kroppens längsta muskel. Den går snett över låret från höften till insidan av knät.','Den heter skräddarmuskeln för att den används när man sitter i skräddarställning.'],
+  en:['Tailor’s muscle','The longest muscle in the body. It runs diagonally across the thigh from the hip to the inside of the knee.','It is called the tailor’s muscle because you use it to sit cross-legged.']},
+ footMuscles:{sys:'musc',sv:['Fotens muskler','Små muskler under foten som håller uppe fotvalvet och rör tårna.','Fotvalvet fungerar som en fjäder när man går och springer.'],
+  en:['Foot muscles','Small muscles under the foot that hold up the arch and move the toes.','The arch of the foot works like a spring when you walk and run.']},
+ pelvicFloor:{sys:'musc',sv:['Bäckenbotten','En skål av muskler längst ner i bäckenet som bär upp organen i buken.','De hjälper till att hålla tätt så att kiss och bajs stannar inne tills man är på toaletten.'],
+  en:['Pelvic floor','A bowl of muscles at the bottom of the pelvis that holds up the organs in the belly.','They help keep pee and poop in until you get to the toilet.']}
+});
+INFO.piriformis={sys:'musc',sv:['Höftens djupa muskler','Små muskler djupt inne i sätet, bland annat päronmuskeln, som vrider höften utåt.','Ischiasnerven passerar alldeles under päronmuskeln.'],
+  en:['Deep hip muscles','Small muscles deep in the buttock, including the piriformis, that turn the hip outward.','The sciatic nerve passes just beneath the piriformis.']};
+INFO.psoas={sys:'musc',sv:['Höftböjaren','Två muskler som går från ländryggen och bäckenet till lårbenet. De lyfter benet framåt.','Det är de man använder när man höjer knät, till exempel när man går i trappor.'],
+  en:['Hip flexor','Two muscles that run from the lower back and pelvis to the thighbone. They lift the leg forward.','These are the ones you use to raise your knee, like when you climb stairs.']};
+INFO.calf.sv[1]='Muskler på underbenets baksida. De lyfter hälen så att man kan stå på tå och skjuta ifrån när man går.';
+INFO.calf.en[1]='Muscles on the back of the lower leg. They lift the heel so you can stand on your toes and push off when you walk.';
+INFO.tibialis.sv[0]='Smalbenets muskler';INFO.tibialis.en[0]='Shin muscles';
+INFO.tibialis.sv[1]='Muskler på framsidan av underbenet som lyfter foten och tårna, så att tårna inte släpar i marken när man går.';
+INFO.tibialis.en[1]='Muscles on the front of the lower leg that lift the foot and toes so they don’t drag when you walk.';
+INFO.forearm.sv[0]='Underarmens muskler';INFO.forearm.en[0]='Forearm muscles';
+INFO.spinalCord.sv[2]='Ryggmärgen slutar redan i höjd med ländryggen. Längre ner fortsätter bara nervtrådar som liknar en hästsvans.';
+INFO.spinalCord.en[2]='The spinal cord ends already at the lower back. Below that only nerve strands continue, looking like a horse’s tail.';
+// everyday names first, technical / Latin name as a small line
+const LAT={skin:'Cutis',hair:'Capilli',muscles:'Musculi',pectoralis:'Pectoralis major',pectMinor:'Pectoralis minor',deltoid:'Deltoideus',biceps:'Biceps brachii',triceps:'Triceps brachii',
+ forearm:'Musculi antebrachii',brachialis:'Brachialis',rectus:'Rectus abdominis',obliques:'Obliquus externus abdominis',trapezius:'Trapezius',latissimus:'Latissimus dorsi',
+ gluteus:'Gluteus maximus, medius, minimus',quadriceps:'Quadriceps femoris',hamstrings:'Biceps femoris, semitendinosus, semimembranosus',calf:'Gastrocnemius, soleus',
+ tibialis:'Tibialis anterior',scm:'Sternocleidomastoideus',serratus:'Serratus anterior',rhomboids:'Rhomboideus major, minor',levScap:'Levator scapulae',psoas:'Iliopsoas',
+ piriformis:'Piriformis',itTract:'Tractus iliotibialis',eyeMuscles:'Musculi bulbi',diaphragm:'Diaphragma',handMuscles:'Musculi manus',rotatorCuff:'Rotatorkuffen',
+ intercostals:'Musculi intercostales',backMuscles:'Erector spinae',neckMuscles:'Musculi colli',adductors:'Adductores',sartorius:'Sartorius',footMuscles:'Musculi pedis',
+ pelvicFloor:'Diaphragma pelvis',skull:'Cranium',mandible:'Mandibula',teeth:'Dentes',hyoid:'Os hyoideum',spine:'Columna vertebralis',discs:'Disci intervertebrales',
+ ribs:'Costae',costalCartilage:'Cartilago costalis',sternum:'Sternum',clavicle:'Clavicula',scapula:'Scapula',humerus:'Humerus',radius:'Radius',ulna:'Ulna',hand:'Ossa manus',
+ pelvis:'Os coxae',femur:'Femur',patella:'Patella',tibia:'Tibia',fibula:'Fibula',foot:'Ossa pedis',brain:'Cerebrum',cerebellum:'Cerebellum',brainstem:'Truncus encephali',
+ pituitary:'Hypophysis',eyes:'Oculi',tongue:'Lingua',salivary:'Glandulae salivariae',thymus:'Thymus',heart:'Cor',lungs:'Pulmones',airways:'Trachea, bronchi',larynx:'Larynx',
+ esophagus:'Oesophagus',stomach:'Gaster',spleen:'Splen',liver:'Hepar',gallbladder:'Vesica biliaris',pancreas:'Pancreas',smallInt:'Intestinum tenue',appendix:'Appendix vermiformis',
+ largeInt:'Intestinum crassum',kidneys:'Renes',adrenal:'Glandulae suprarenales',ureters:'Ureteres',bladder:'Vesica urinaria',prostate:'Prostata',spinalCord:'Medulla spinalis',
+ opticNerve:'Nervus opticus',coronary:'Arteriae coronariae',pulmonaryArt:'Arteriae pulmonales',aorta:'Aorta',carotid:'Arteriae carotides',brainArt:'Circulus Willisi',
+ gutArt:'Truncus coeliacus, mesenterica',renalArt:'Arteriae renales',legArt:'Arteria femoralis',armArt:'Arteria brachialis',trunkArt:'Arteria thoracica interna',
+ cardiacVeins:'Venae cordis',pulmonaryVeins:'Venae pulmonales',venaCava:'Vena cava',jugular:'Vena jugularis',armVein:'Venae membri superioris',legVein:'Venae membri inferioris',
+ portal:'Vena portae',trunkVeins:'Venae renales, lumbales'};
+// everyday-first names where the old ones were technical
+[['scm','Nickmuskeln','Neck-turning muscle'],['pectoralis','Bröstmuskeln','Chest muscle'],['pectMinor','Lilla bröstmuskeln','Small chest muscle'],['deltoid','Axelmuskeln','Shoulder muscle'],
+ ['obliques','Sidans magmuskler','Side tummy muscles'],['trapezius','Kappmuskeln','Upper back muscle'],['gluteus','Rumpmusklerna','Bottom muscles'],['quadriceps','Lårmuskeln','Front thigh muscle'],
+ ['hamstrings','Baksida lår','Back thigh muscles'],['calf','Vaden','Calf muscles'],['serratus','Sågmuskeln','Saw muscle'],['rhomboids','Rombmusklerna','Between-shoulder muscles'],
+ ['levScap','Axellyftaren','Shrugging muscle'],['brachialis','Armbågsböjaren','Elbow bender'],['itTract','Höftbensbandet','Outer thigh band'],['diaphragm','Mellangärdet','Breathing muscle (diaphragm)'],
+ ['humerus','Överarmsbenet','Upper arm bone'],['radius','Strålbenet','Forearm bone (thumb side)'],['ulna','Armbågsbenet','Forearm bone (little finger side)'],['femur','Lårbenet','Thighbone'],
+ ['tibia','Skenbenet','Shinbone'],['fibula','Vadbenet','Thin leg bone'],['patella','Knäskålen','Kneecap'],['clavicle','Nyckelbenet','Collarbone'],['scapula','Skulderbladet','Shoulder blade'],
+ ['sternum','Bröstbenet','Breastbone'],['mandible','Underkäken','Jawbone'],['pelvis','Bäckenet','Hip bones'],['hyoid','Tungbenet','Tongue bone'],['discs','Mellankotskivorna','Spine cushions'],
+ ['costalCartilage','Revbensbrosket','Rib cartilage'],['brainstem','Hjärnstammen','Brainstem'],['cerebellum','Lillhjärnan','Little brain'],['pituitary','Hypofysen','Pituitary gland'],
+ ['airways','Luftvägarna','Airways'],['esophagus','Matstrupen','Food pipe'],['smallInt','Tunntarmen','Small intestine'],['largeInt','Tjocktarmen','Large intestine'],['appendix','Blindtarmen','Appendix'],
+ ['gallbladder','Gallblåsan','Gallbladder'],['pancreas','Bukspottkörteln','Pancreas'],['adrenal','Binjurarna','Adrenal glands'],['ureters','Urinledarna','Pee tubes (ureters)'],['bladder','Urinblåsan','Bladder'],
+ ['thymus','Brässen','Thymus'],['salivary','Spott- och tårkörtlar','Spit and tear glands'],['coronary','Hjärtats egna artärer','Heart’s own arteries'],['pulmonaryArt','Lungartärerna','Lung arteries'],
+ ['pulmonaryVeins','Lungvenerna','Lung veins'],['aorta','Stora kroppspulsådern','Aorta'],['carotid','Halspulsådrorna','Neck arteries'],['venaCava','Hålvenerna','Big body veins'],['jugular','Halsvenen','Neck vein'],
+ ['portal','Leverns vener','Liver veins'],['cardiacVeins','Hjärtats vener','Heart veins'],['trunkVeins','Bålens vener','Trunk veins'],['trunkArt','Bröst- och bukväggens artärer','Chest and belly wall arteries'],
+ ['gutArt','Magens och tarmarnas artärer','Tummy arteries'],['renalArt','Njurartärerna','Kidney arteries'],['legArt','Benens artärer','Leg arteries'],['armArt','Armarnas artärer','Arm arteries'],
+ ['brainArt','Hjärnans artärer','Brain arteries'],['legVein','Benens vener','Leg veins'],['armVein','Armarnas vener','Arm veins'],['eyeMuscles','Ögonmusklerna','Eye muscles']
+].forEach(([id,sv,en])=>{if(INFO[id]){INFO[id].sv[0]=sv;INFO[id].en[0]=en;}});
+
+const STR={
+ sv:{title:'Kroppen',parts:'☰ Delar',home:'Visa hela kroppen',xray:'Genomskinlig',hint:'Dra för att snurra · Nyp för att zooma · Tryck på en del',
+  load:'Laddar kroppen…',read:'Läs upp',live:'Hjärtslag och andning',only:'Visa bara denna',back:'Hela kroppen',nogl:'Din webbläsare saknar stöd för 3D-grafik (WebGL).',err:'Kunde inte ladda 3D-modellen. Kontrollera nätet och ladda om sidan.',
+  credit:'3D-modeller: BodyParts3D, © Database Center for Life Science (DBCLS), licens CC BY-SA 2.1 JP. Förenklade och färgsatta för appen. Lungorna och ryggmärgen finns inte i BodyParts3D och är framräknade utifrån luftvägar, kärl och ryggrad.'},
+ en:{title:'The Body',parts:'☰ Parts',home:'Show the whole body',xray:'See-through',hint:'Drag to spin · Pinch to zoom · Tap a part',
+  load:'Loading the body…',read:'Read aloud',live:'Heartbeat and breathing',only:'Show only this',back:'Whole body',nogl:'Your browser doesn’t support 3D graphics (WebGL).',err:'Couldn’t load the 3D model. Check your connection and reload.',
+  credit:'3D models: BodyParts3D, © Database Center for Life Science (DBCLS), license CC BY-SA 2.1 JP. Simplified and recoloured for this app. The lungs and spinal cord are not in BodyParts3D and were reconstructed from the airways, vessels and spine.'}
+};
+let lang='sv';
+try{lang=localStorage.getItem('lang')||(/^en/i.test(navigator.language||'')?'en':'sv');}catch(e){lang=/^en/i.test(navigator.language||'')?'en':'sv';}
+const S=k=>STR[lang][k];
+const T=id=>INFO[id]?INFO[id][lang]:[id,'',''];
+
+/* ================= tiny math ================= */
+const M4={
+ persp(f,a,n,fa){const t=1/Math.tan(f/2),nf=1/(n-fa);return new Float32Array([t/a,0,0,0, 0,t,0,0, 0,0,(fa+n)*nf,-1, 0,0,2*fa*n*nf,0]);},
+ look(e,c,u){let z=norm(sub(e,c)),x=norm(cross(u,z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0, -dot(x,e),-dot(y,e),-dot(z,e),1]);},
+ mul(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++){let s=0;for(let k=0;k<4;k++)s+=a[k*4+j]*b[i*4+k];o[i*4+j]=s;}return o;}
+};
+function sub(a,b){return[a[0]-b[0],a[1]-b[1],a[2]-b[2]];}function add(a,b){return[a[0]+b[0],a[1]+b[1],a[2]+b[2]];}
+function scl(a,s){return[a[0]*s,a[1]*s,a[2]*s];}function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
+function cross(a,b){return[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];}
+function norm(a){const l=Math.hypot(a[0],a[1],a[2])||1;return[a[0]/l,a[1]/l,a[2]/l];}
+function lerp(a,b,t){return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];}
+function hex(h){const n=parseInt(h.slice(1),16);return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
+
+/* ================= GL setup ================= */
+const canvas=document.getElementById('scene');
+let gl=canvas.getContext('webgl2',{antialias:true,alpha:true,premultipliedAlpha:true,preserveDrawingBuffer:false});
+const GL2=!!gl;
+if(!gl){gl=canvas.getContext('webgl',{antialias:true,alpha:true})||canvas.getContext('experimental-webgl');if(gl)gl.getExtension('OES_element_index_uint');}
+const VS=`
+attribute vec3 aPos;attribute vec3 aNrm;
+uniform mat4 uVP;uniform float uOut;uniform vec3 uPC;uniform vec3 uPS;uniform vec3 uPT;
+varying vec3 vN;varying vec3 vW;
+void main(){vec3 p=uPC+(aPos-uPC)*uPS+uPT+aNrm*uOut;vN=aNrm;vW=p;gl_Position=uVP*vec4(p,1.0);}`;
+const FS=`
+precision highp float;
+varying vec3 vN;varying vec3 vW;
+uniform vec3 uColor;uniform float uAlpha;uniform vec3 uEye;uniform vec3 uL;uniform float uGlow;uniform float uMode;uniform float uGhost;uniform float uFar;
+void main(){
+  if(uMode>2.5){float d=clamp(length(vW-uEye)/uFar,0.0,1.0)*255.0;float hi=floor(d);gl_FragColor=vec4(uColor.rg,hi/255.0,fract(d));return;}
+  if(uMode>0.5){gl_FragColor=vec4(uColor,1.0);return;}
+  vec3 N=normalize(vN);vec3 V=normalize(uEye-vW);if(dot(N,V)<0.0)N=-N;
+  float d=dot(N,uL);
+  float band=0.52+0.30*smoothstep(-0.02,0.06,d)+0.18*smoothstep(0.50,0.58,d);
+  vec3 col=uColor*band;
+  float sp=smoothstep(0.90,0.94,dot(reflect(-uL,N),V));col+=vec3(0.22)*sp;
+  float fr=1.0-abs(dot(N,V));
+  col=mix(col,col*0.62,smoothstep(0.62,0.8,fr));
+  col+=uGlow*vec3(1.0,0.86,0.55);
+  float a=uAlpha;
+  if(uGhost>0.5){a=uAlpha*(0.18+0.82*smoothstep(0.35,0.95,fr));col=mix(col,uColor*0.5,smoothstep(0.7,1.0,fr));}
+  gl_FragColor=vec4(col*a,a);
+}`;
+function shader(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(o));return o;}
+let prog,U={};
+if(gl){prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,VS));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,FS));
+  gl.bindAttribLocation(prog,0,'aPos');gl.bindAttribLocation(prog,1,'aNrm');gl.linkProgram(prog);gl.useProgram(prog);
+  ['uVP','uOut','uColor','uAlpha','uEye','uL','uGlow','uMode','uGhost','uFar','uPC','uPS','uPT'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+  gl.enableVertexAttribArray(0);gl.enableVertexAttribArray(1);gl.enable(gl.DEPTH_TEST);gl.clearColor(0,0,0,0);}
+
+const EVS=`attribute vec2 aQ;varying vec2 vUv;void main(){vUv=aQ*0.5+0.5;gl_Position=vec4(aQ,0.0,1.0);}`;
+const EFS=`precision highp float;varying vec2 vUv;uniform sampler2D uTex;uniform vec2 uPx;uniform float uSel;uniform vec3 uInk;
+vec4 S(vec2 o){return texture2D(uTex,vUv+o*uPx);}
+float gOf(vec4 c){return floor(c.g*255.0+0.5);}
+float idOf(vec4 c){float g=gOf(c);return floor(c.r*255.0+0.5)+256.0*(g>=128.0?g-128.0:g);}
+float dOf(vec4 c){return (floor(c.b*255.0+0.5)+c.a)/255.0;}
+void main(){vec4 c=S(vec2(0.0));float id=idOf(c);float d=dOf(c);bool thin=gOf(c)>=128.0;
+  float e=0.0;float sel=0.0;
+  vec2 offs[4];offs[0]=vec2(1.0,0.0);offs[1]=vec2(-1.0,0.0);offs[2]=vec2(0.0,1.0);offs[3]=vec2(0.0,-1.0);
+  for(int i=0;i<4;i++){vec4 n=S(offs[i]);float nid=idOf(n);float nd=dOf(n);
+    if(nid!=id){float near=id==0.0?nd:(nid==0.0?d:min(d,nd));
+      if(nid==0.0||id==0.0||nd>d){e=max(e,1.0);} 
+      if(id==uSel||nid==uSel)sel=1.0;}
+    else if(id>0.0&&abs(nd-d)>0.012*d+0.0004){e=max(e,0.7);}}
+  if(thin&&id!=uSel)e=0.0;
+  if(e<=0.0)discard;
+  vec3 col=sel>0.0?vec3(0.95,0.55,0.1):uInk;float a=sel>0.0?1.0:0.82*e;
+  gl_FragColor=vec4(col*a,a);}`;
+let eprog,EU={},quad;
+if(gl){eprog=gl.createProgram();gl.attachShader(eprog,shader(gl.VERTEX_SHADER,EVS));gl.attachShader(eprog,shader(gl.FRAGMENT_SHADER,EFS));gl.bindAttribLocation(eprog,0,'aQ');gl.linkProgram(eprog);
+  ['uTex','uPx','uSel','uInk'].forEach(n=>EU[n]=gl.getUniformLocation(eprog,n));
+  quad=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);gl.useProgram(prog);}
+let eFB=null,eTex=null,eRB=null,eW=0,eH=0;
+function ensureEdgeFB(W,H){if(eFB&&eW===W&&eH===H)return;eW=W;eH=H;eFB=eFB||gl.createFramebuffer();eTex=eTex||gl.createTexture();eRB=eRB||gl.createRenderbuffer();
+  gl.bindTexture(gl.TEXTURE_2D,eTex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,W,H,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+  gl.bindRenderbuffer(gl.RENDERBUFFER,eRB);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,W,H);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,eFB);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,eTex,0);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,eRB);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);}
+
+/* ================= model ================= */
+const PARTS={};let ORDER=[];let BODY={min:[0,0,0],max:[1,1,1]};
+async function loadModel(){
+  const bar=document.getElementById('loadBar');
+  const meta=await (await fetch('body.json')).json();
+  const res=await fetch('body.bin');if(!res.ok)throw new Error('bin');
+  const total=+res.headers.get('content-length')||meta.size||0;let buf;
+  if(res.body&&total){const rd=res.body.getReader();const out=new Uint8Array(total);let got=0;
+    for(;;){const {done,value}=await rd.read();if(done)break;out.set(value,got);got+=value.length;bar.style.width=Math.round(got/total*100)+'%';}buf=out.buffer;}
+  else buf=await res.arrayBuffer();
+  const [bmin,bmax]=meta.bbox;const sc=[0,1,2].map(i=>(bmax[i]-bmin[i])/65535);
+  meta.parts.forEach(p=>{
+    const q=new Uint16Array(buf,p.voff,p.nv*3);const pos=new Float32Array(p.nv*3);
+    for(let i=0;i<p.nv*3;i+=3){pos[i]=bmin[0]+q[i]*sc[0];pos[i+1]=bmin[1]+q[i+1]*sc[1];pos[i+2]=bmin[2]+q[i+2]*sc[2];}
+    const idx=p.u32?new Uint32Array(buf,p.ioff,p.ni):new Uint16Array(buf,p.ioff,p.ni);
+    const qn=new Int8Array(buf,p.noff,p.nv*3);const nrm=new Float32Array(p.nv*3);
+    for(let i=0;i<nrm.length;i+=3){const x=qn[i],y=qn[i+1],z=qn[i+2],l=Math.hypot(x,y,z)||1;nrm[i]=x/l;nrm[i+1]=y/l;nrm[i+2]=z/l;}
+    const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,pos,gl.STATIC_DRAW);
+    const nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.bufferData(gl.ARRAY_BUFFER,nrm,gl.STATIC_DRAW);
+    const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,idx,gl.STATIC_DRAW);
+    PARTS[p.id]={id:p.id,layer:p.layer,color:hex(p.color),hexc:p.color,vb,nb,ib,n:p.ni,type:p.u32?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,center:p.center,bmin:p.bmin,bmax:p.bmax,pick:0};
+  });
+  ORDER=Object.keys(PARTS);ORDER.forEach((id,i)=>PARTS[id].pick=i+1);setupAnim();
+  const sk=PARTS.skin||PARTS[ORDER[0]];BODY={min:sk.bmin,max:sk.bmax};
+}
+
+/* ================= camera ================= */
+const cam={target:[0,8.2,1.0],yaw:0,pitch:.06,dist:31,fov:34*Math.PI/180,shift:0};
+let HOME=null;
+function eye(){const cp=Math.cos(cam.pitch);return add(cam.target,[cam.dist*cp*Math.sin(cam.yaw),cam.dist*Math.sin(cam.pitch),cam.dist*cp*Math.cos(cam.yaw)]);}
+function matrices(){const W=canvas.width,H=canvas.height;const P=M4.persp(cam.fov,W/H,Math.max(.02,cam.dist*.01),cam.dist*4+40);P[9]=-2*cam.shift/(H/dpr());
+  const e=eye();const V=M4.look(e,cam.target,[0,1,0]);return{VP:M4.mul(P,V),e,V};}
+function dpr(){return Math.min(window.devicePixelRatio||1,2);}
+
+/* ================= state ================= */
+const layerOn={skin:true,muscle:false,skeleton:true,organs:true,nerves:false,arteries:false,veins:false};
+let xray=true,selected=null,isolate=null;
+try{const s=JSON.parse(localStorage.getItem('layers2')||'null');if(s){Object.assign(layerOn,s.on||{});xray=s.xray!==false;}}catch(e){}
+function save(){try{localStorage.setItem('layers2',JSON.stringify({on:layerOn,xray}));}catch(e){}}
+function visible(p){return isolate?p.id===isolate:layerOn[p.layer];}
+function ghost(p){if(isolate||!xray)return false;if(p.layer==='skin')return true;
+  if(selected&&p.id!==selected)return true;if(p.layer==='muscle')return !(selected&&PARTS[selected].layer==='muscle')&&(layerOn.skeleton||layerOn.organs||layerOn.nerves||layerOn.arteries||layerOn.veins);return false;}
+
+/* ================= render ================= */
+let dirty=true,pickFB=null,pickTex=null,pickRB=null,pickW=0,pickH=0;
+let animOn=true;try{animOn=localStorage.getItem('anim')!=='off';}catch(e){}
+let animT=0;const ANIM={};
+function setupAnim(){
+  const c=p=>[(p.bmin[0]+p.bmax[0])/2,(p.bmin[1]+p.bmax[1])/2,(p.bmin[2]+p.bmax[2])/2];
+  if(PARTS.heart){const hc=c(PARTS.heart);['heart','coronary','cardiacVeins'].forEach(id=>{if(PARTS[id])ANIM[id]={type:'beat',c:hc};});}
+  if(PARTS.lungs){const l=PARTS.lungs,lc=[(l.bmin[0]+l.bmax[0])/2,l.bmax[1],(l.bmin[2]+l.bmax[2])/2];ANIM.lungs={type:'breath',c:lc,k:1};
+    ['airways','pulmonaryArt','pulmonaryVeins'].forEach(id=>{if(PARTS[id])ANIM[id]={type:'breath',c:lc,k:.35};});}
+  if(PARTS.diaphragm)ANIM.diaphragm={type:'dia',c:c(PARTS.diaphragm)};
+}
+const ONE=[1,1,1],ZERO=[0,0,0];
+function xform(p){const a=animOn&&ANIM[p.id];
+  if(!a){gl.uniform3fv(U.uPC,ZERO);gl.uniform3fv(U.uPS,ONE);gl.uniform3fv(U.uPT,ZERO);return;}
+  const br=.5-.5*Math.cos(animT*2*Math.PI/4.2);
+  if(a.type==='beat'){const ph=(animT/.8)%1;const s=1-.05*(Math.exp(-Math.pow((ph-.08)/.045,2))+.55*Math.exp(-Math.pow((ph-.26)/.05,2)));
+    gl.uniform3fv(U.uPC,a.c);gl.uniform3fv(U.uPS,[s,s,s]);gl.uniform3fv(U.uPT,ZERO);}
+  else if(a.type==='breath'){const k=a.k;gl.uniform3fv(U.uPC,a.c);gl.uniform3fv(U.uPS,[1+.04*br*k,1+.07*br*k,1+.05*br*k]);gl.uniform3fv(U.uPT,ZERO);}
+  else{gl.uniform3fv(U.uPC,a.c);gl.uniform3fv(U.uPS,ONE);gl.uniform3fv(U.uPT,[0,-.14*br,0]);}
+}
+function animating(){return animOn&&Object.keys(ANIM).some(id=>PARTS[id]&&visible(PARTS[id]));}
+function bindPart(p){xform(p);gl.bindBuffer(gl.ARRAY_BUFFER,p.vb);gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,p.nb);gl.vertexAttribPointer(1,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p.ib);}
+function draw(now){
+  const W=canvas.width,H=canvas.height;gl.viewport(0,0,W,H);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  const {VP,e}=matrices();gl.uniformMatrix4fv(U.uVP,false,VP);gl.uniform3fv(U.uEye,e);
+  const f=norm(sub(cam.target,e)),r=norm(cross(f,[0,1,0])),u=cross(r,f);
+  gl.uniform3fv(U.uL,norm(add(add(scl(r,-.45),scl(u,.7)),scl(f,-.75))));
+  const opaque=[],ghosts=[];
+  ORDER.forEach(id=>{const p=PARTS[id];if(!visible(p))return;(ghost(p)?ghosts:opaque).push(p);});
+  const glow=selected?.16+.12*Math.sin(now*.004):0;
+  const ow=Math.min(.03,Math.max(.004,cam.dist*.0019));
+  gl.disable(gl.BLEND);gl.depthMask(true);gl.uniform1f(U.uGhost,0);gl.uniform1f(U.uAlpha,1);
+  const far=cam.dist*4+40;gl.uniform1f(U.uFar,far);
+  // pass 1: ids + distance for screen-space ink lines
+  ensureEdgeFB(W,H);gl.bindFramebuffer(gl.FRAMEBUFFER,eFB);gl.clearColor(0,0,0,0);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.uniform1f(U.uMode,3);gl.uniform1f(U.uOut,0);
+  opaque.forEach(p=>{const thin=p.layer==='arteries'||p.layer==='veins'||p.layer==='nerves'?128:0;gl.uniform3fv(U.uColor,[(p.pick&255)/255,((p.pick>>8&127)+thin)/255,0]);bindPart(p);gl.drawElements(gl.TRIANGLES,p.n,p.type,0);});
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,W,H);
+  // pass 2: toon colour
+  gl.uniform1f(U.uMode,0);
+  opaque.forEach(p=>{gl.uniform3fv(U.uColor,p.color);gl.uniform1f(U.uGlow,p.id===selected?glow:0);bindPart(p);gl.drawElements(gl.TRIANGLES,p.n,p.type,0);});
+  // pass 3: ink overlay
+  gl.useProgram(eprog);gl.disable(gl.DEPTH_TEST);gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
+  gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,eTex);gl.uniform1i(EU.uTex,0);
+  const lw=Math.max(1,dpr()*.9);gl.uniform2f(EU.uPx,lw/W,lw/H);gl.uniform1f(EU.uSel,selected?PARTS[selected].pick:-1);gl.uniform3fv(EU.uInk,[.11,.15,.19]);
+  gl.bindBuffer(gl.ARRAY_BUFFER,quad);gl.disableVertexAttribArray(1);gl.vertexAttribPointer(0,2,gl.FLOAT,false,0,0);gl.drawArrays(gl.TRIANGLES,0,3);
+  gl.enableVertexAttribArray(1);gl.useProgram(prog);gl.enable(gl.DEPTH_TEST);gl.disable(gl.BLEND);
+  if(ghosts.length){gl.enable(gl.BLEND);gl.blendFunc(gl.ONE,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.enable(gl.CULL_FACE);gl.uniform1f(U.uGhost,1);
+    const RANK={skeleton:0,organs:1,arteries:2,veins:2,nerves:2,muscle:3,skin:4};
+    ghosts.sort((a,b)=>RANK[a.layer]-RANK[b.layer]).forEach(p=>{gl.uniform3fv(U.uColor,p.color);gl.uniform1f(U.uAlpha,p.layer==='skin'?.55:p.layer==='muscle'?.6:.42);gl.uniform1f(U.uGlow,0);bindPart(p);gl.drawElements(gl.TRIANGLES,p.n,p.type,0);});
+    gl.disable(gl.CULL_FACE);gl.depthMask(true);gl.disable(gl.BLEND);gl.uniform1f(U.uGhost,0);}
+}
+function pickAt(x,y){
+  const W=canvas.width,H=canvas.height;
+  if(!pickFB||pickW!==W||pickH!==H){pickW=W;pickH=H;pickFB=pickFB||gl.createFramebuffer();pickTex=pickTex||gl.createTexture();pickRB=pickRB||gl.createRenderbuffer();
+    gl.bindTexture(gl.TEXTURE_2D,pickTex);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,W,H,0,gl.RGBA,gl.UNSIGNED_BYTE,null);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+    gl.bindRenderbuffer(gl.RENDERBUFFER,pickRB);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,W,H);
+    gl.bindFramebuffer(gl.FRAMEBUFFER,pickFB);gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,pickTex,0);gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,pickRB);}
+  gl.bindFramebuffer(gl.FRAMEBUFFER,pickFB);
+  const run=withGhosts=>{gl.viewport(0,0,W,H);gl.clearColor(0,0,0,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.disable(gl.BLEND);gl.depthMask(true);
+    const {VP}=matrices();gl.uniformMatrix4fv(U.uVP,false,VP);gl.uniform1f(U.uMode,2);gl.uniform1f(U.uOut,0);
+    ORDER.forEach(id=>{const p=PARTS[id];if(!visible(p)||(!withGhosts&&ghost(p)))return;gl.uniform3fv(U.uColor,[(p.pick&255)/255,(p.pick>>8&255)/255,0]);bindPart(p);gl.drawElements(gl.TRIANGLES,p.n,p.type,0);});
+    const px=new Uint8Array(4*25);const cx=Math.round(x*dpr()),cy=Math.round(H-y*dpr());gl.readPixels(Math.max(0,cx-2),Math.max(0,cy-2),5,5,gl.RGBA,gl.UNSIGNED_BYTE,px);
+    const cnt={};for(let i=0;i<25;i++){const k=px[i*4]+(px[i*4+1]<<8);if(k)cnt[k]=(cnt[k]||0)+1+(i===12?3:0);}
+    let best=0,bc=0;for(const k in cnt)if(cnt[k]>bc){bc=cnt[k];best=+k;}return best;};
+  let id=run(false);if(!id)id=run(true);
+  gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.clearColor(0,0,0,0);dirty=true;
+  return id?ORDER[id-1]:null;
+}
+
+/* ================= UI ================= */
+const layersEl=document.getElementById('layers'),cardEl=document.getElementById('card'),hintEl=document.getElementById('hint'),listEl=document.getElementById('list'),listBtn=document.getElementById('listBtn');
+const xBtn=document.createElement('button');xBtn.className='lyr xray';xBtn.style.setProperty('--c','#9ad6d2');const xTxt=document.createTextNode('');
+{const b=document.createElement('span');b.className='box';xBtn.append(b,xTxt);}
+xBtn.onclick=()=>{xray=!xray;save();refreshUI();};layersEl.append(xBtn);
+function buildLayerButtons(){LAYERS.forEach(l=>{if(!ORDER.some(id=>PARTS[id].layer===l.id))return;const b=document.createElement('button');b.className='lyr';b.style.setProperty('--c',l.c);
+  const box=document.createElement('span');box.className='box';l.txt=document.createTextNode(l[lang]);b.append(box,l.txt);
+  b.onclick=()=>{layerOn[l.id]=!layerOn[l.id];if(isolate)isolate=null;save();refreshUI();renderCard();};layersEl.append(b);l.btn=b;});}
+function refreshUI(){LAYERS.forEach(l=>l.btn&&l.btn.setAttribute('aria-pressed',layerOn[l.id]));xBtn.setAttribute('aria-pressed',xray);dirty=true;}
+function sysOf(id){return INFO[id]?SYS[INFO[id].sys][lang==='en'?1:0]:LAYERS.find(l=>l.id===PARTS[id].layer)[lang];}
+function renderCard(){
+  stopSpeak();
+  if(!selected){cardEl.hidden=true;layout();return;}
+  const [name,desc,fun]=T(selected);cardEl.innerHTML='';
+  const k=document.createElement('p');k.className='kind';const dot=document.createElement('i');dot.style.background=PARTS[selected].hexc;k.append(dot,document.createTextNode(sysOf(selected)));
+  const h=document.createElement('h2');h.textContent=name;
+  const head=document.createElement('div');head.className='head';const hw=document.createElement('div');hw.append(k,h);
+  if(LAT[selected]){const l=document.createElement('p');l.className='lat';l.textContent=LAT[selected];hw.append(l);}
+  const sp=document.createElement('button');sp.className='speak';sp.setAttribute('aria-label',S('read'));sp.setAttribute('aria-pressed','false');
+  sp.innerHTML='<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg>';
+  sp.onclick=()=>toggleSpeak(selected,sp);head.append(hw,sp);
+  const d=document.createElement('p');d.className='desc';d.textContent=desc;
+  const act=document.createElement('div');act.className='actions';
+  const iso=document.createElement('button');iso.textContent=S('only');iso.setAttribute('aria-pressed',isolate===selected);iso.onclick=()=>{isolate=isolate===selected?null:selected;refreshUI();renderCard();flyTo(selected);};
+  const back=document.createElement('button');back.textContent=S('back');back.onclick=home;
+  act.append(iso,back);cardEl.append(head,d);
+  if(fun){const f=document.createElement('p');f.className='fun';f.textContent=fun;cardEl.append(f);}
+  cardEl.append(act);cardEl.hidden=false;layout();
+}
+let AUDIO={};let speaking=null;
+fetch('audio/index.json').then(r=>r.ok?r.json():{}).then(j=>{AUDIO=j||{};}).catch(()=>{});
+function voiceFor(l){try{const vs=speechSynthesis.getVoices();return vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith(l==='sv'?'sv':'en-gb'))||vs.find(v=>v.lang&&v.lang.toLowerCase().startsWith(l));}catch(e){return null;}}
+try{speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=()=>{};}catch(e){}
+function stopSpeak(){if(speaking&&speaking.audio){speaking.audio.pause();}try{speechSynthesis.cancel();}catch(e){}if(speaking&&speaking.btn)speaking.btn.setAttribute('aria-pressed','false');speaking=null;}
+function toggleSpeak(id,btn){
+  if(speaking){stopSpeak();return;}
+  const [n,d,f]=T(id);const done=()=>{if(speaking&&speaking.btn===btn){btn.setAttribute('aria-pressed','false');speaking=null;}};
+  btn.setAttribute('aria-pressed','true');
+  if(AUDIO[lang]&&AUDIO[lang].includes(id)){const a=new Audio('audio/'+lang+'/'+id+'.mp3');speaking={btn,audio:a};a.onended=done;a.onerror=done;a.play().catch(done);return;}
+  try{const u=new SpeechSynthesisUtterance([n,d,f].filter(Boolean).join('. '));u.lang=lang==='sv'?'sv-SE':'en-GB';const v=voiceFor(lang);if(v)u.voice=v;u.rate=.92;u.pitch=1.05;
+    u.onend=done;u.onerror=done;speaking={btn};speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){done();}
+}
+function renderList(){listEl.innerHTML='';
+  LAYERS.forEach(l=>{const ids=ORDER.filter(id=>PARTS[id].layer===l.id);if(!ids.length)return;
+    const h=document.createElement('h3');const i=document.createElement('i');i.style.background=l.c;h.append(i,document.createTextNode(l[lang]));
+    const wrap=document.createElement('div');wrap.className='items';
+    ids.sort((a,b)=>T(a)[0].localeCompare(T(b)[0],lang)).forEach(id=>{const b=document.createElement('button');b.textContent=T(id)[0];b.onclick=()=>{toggleList(false);pick(id,true);};wrap.append(b);});
+    listEl.append(h,wrap);});
+  const c=document.createElement('p');c.className='credit';c.textContent=S('credit')+' ';const a=document.createElement('a');a.href='https://dbarchive.biosciencedbc.jp/en/bodyparts3d/';a.target='_blank';a.rel='noopener';a.textContent='BodyParts3D ↗';c.append(a);listEl.append(c);}
+function toggleList(open){listEl.hidden=!open;listBtn.setAttribute('aria-expanded',open);if(open)renderList();}
+listBtn.onclick=()=>toggleList(listEl.hidden);
+function applyLang(){
+  document.documentElement.lang=lang;document.title=lang==='en'?'The Body in 3D':'Kroppen i 3D';
+  document.getElementById('ttl').textContent=S('title');listBtn.textContent=S('parts');hintEl.textContent=S('hint');document.getElementById('loadTxt').textContent=S('load');
+  document.getElementById('home').setAttribute('aria-label',S('home'));document.getElementById('live').setAttribute('aria-label',S('live'));
+  LAYERS.forEach(l=>l.txt&&(l.txt.textContent=l[lang]));xTxt.textContent=S('xray');
+  document.getElementById('lang-sv').setAttribute('aria-pressed',lang==='sv');document.getElementById('lang-en').setAttribute('aria-pressed',lang==='en');
+  renderCard();if(!listEl.hidden)renderList();
+}
+['sv','en'].forEach(l=>document.getElementById('lang-'+l).onclick=()=>{lang=l;try{localStorage.setItem('lang',l);}catch(e){}applyLang();});
+
+/* ================= selection + camera flights ================= */
+let fly=null;
+function flyTo(id){
+  const p=PARTS[id];const c=[(p.bmin[0]+p.bmax[0])/2,(p.bmin[1]+p.bmax[1])/2,(p.bmin[2]+p.bmax[2])/2];
+  const size=Math.hypot(p.bmax[0]-p.bmin[0],p.bmax[1]-p.bmin[1],p.bmax[2]-p.bmin[2]);
+  const bodyMidZ=(BODY.min[2]+BODY.max[2])/2;
+  let yaw=cam.yaw;const back=c[2]<bodyMidZ-.25;const wantBack=back?Math.PI:0;
+  let dy=((wantBack-yaw)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;if(Math.abs(dy)>Math.PI/2.2)yaw+=dy;else if(back!==(Math.cos(cam.yaw)<0))yaw+=dy;
+  const dist=Math.min(34,Math.max(2.2,size/(2*Math.tan(cam.fov/2))*1.7+.8));
+  fly={t0:performance.now(),dur:1100,from:{target:cam.target.slice(),yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},to:{target:c,yaw,pitch:.12,dist}};
+}
+function pick(id,fromList){
+  selected=id;hideHint();
+  if(fromList){const p=PARTS[id];if(!layerOn[p.layer]){layerOn[p.layer]=true;save();}if(p.layer!=='skin'&&layerOn.skin)xray=true;
+    if(p.layer!=='muscle'&&p.layer!=='skin'&&layerOn.muscle)xray=true;}
+  if(isolate&&isolate!==id)isolate=null;
+  refreshUI();renderCard();flyTo(id);
+}
+function home(){selected=null;isolate=null;refreshUI();renderCard();
+  fly={t0:performance.now(),dur:1100,from:{target:cam.target.slice(),yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},to:{target:HOME.target.slice(),yaw:Math.round(cam.yaw/(2*Math.PI))*2*Math.PI,pitch:HOME.pitch,dist:HOME.dist}};}
+document.getElementById('home').onclick=home;
+{const lb=document.getElementById('live');lb.setAttribute('aria-pressed',animOn);lb.onclick=()=>{animOn=!animOn;lb.setAttribute('aria-pressed',animOn);try{localStorage.setItem('anim',animOn?'on':'off');}catch(e){}dirty=true;};}
+let hinted=true;function hideHint(){if(hinted){hinted=false;hintEl.style.opacity=0;setTimeout(()=>hintEl.hidden=true,700);}}
+
+/* ================= input ================= */
+const ptrs=new Map();let tap=null,lastPinch=null;
+canvas.addEventListener('pointerdown',e=>{canvas.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY,b:e.button});
+  if(ptrs.size===1)tap={x:e.clientX,y:e.clientY,t:performance.now()};else tap=null;lastPinch=null;fly=null;if(!listEl.hidden)toggleList(false);});
+canvas.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;
+  if(ptrs.size===1){if(p.b===2||e.shiftKey)pan(dx,dy);else{cam.yaw-=dx*.008;cam.pitch=Math.max(-1.45,Math.min(1.45,cam.pitch+dy*.008));}}
+  p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y),mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+    if(lastPinch){cam.dist=Math.max(.8,Math.min(60,cam.dist*lastPinch.d/d));pan(mx-lastPinch.mx,my-lastPinch.my);}lastPinch={d,mx,my};}
+  if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>8){tap=null;hideHint();}dirty=true;});
+function endPtr(e){ptrs.delete(e.pointerId);lastPinch=null;
+  if(tap&&ptrs.size===0&&performance.now()-tap.t<500&&e.type==='pointerup'){const r=canvas.getBoundingClientRect();const id=pickAt(e.clientX-r.left,e.clientY-r.top);if(id)pick(id);}tap=null;}
+canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',endPtr);
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+canvas.addEventListener('wheel',e=>{e.preventDefault();fly=null;cam.dist=Math.max(.8,Math.min(60,cam.dist*Math.exp(e.deltaY*.0012)));hideHint();dirty=true;},{passive:false});
+function pan(dx,dy){const e=eye();const f=norm(sub(cam.target,e)),r=norm(cross(f,[0,1,0])),u=cross(r,f);const k=cam.dist*Math.tan(cam.fov/2)*2/canvas.clientHeight;
+  cam.target=add(cam.target,add(scl(r,-dx*k),scl(u,dy*k)));}
+
+/* ================= loop ================= */
+function layout(){const W=canvas.clientWidth,H=canvas.clientHeight,r=dpr();if(canvas.width!==Math.round(W*r)||canvas.height!==Math.round(H*r)){canvas.width=Math.round(W*r);canvas.height=Math.round(H*r);}
+  cam.shift=cardEl.hidden?0:Math.min(H*.2,cardEl.offsetHeight*.5+20);dirty=true;}
+addEventListener('resize',layout);
+let lastDraw=0,drawAvg=10,animGap=32;
+const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+function frame(now){
+  if(fly){const k=ease(Math.min(1,(now-fly.t0)/fly.dur));const a=fly.from,b=fly.to;cam.target=lerp(a.target,b.target,k);cam.yaw=a.yaw+(b.yaw-a.yaw)*k;cam.pitch=a.pitch+(b.pitch-a.pitch)*k;cam.dist=a.dist+(b.dist-a.dist)*k;if(k>=1)fly=null;dirty=true;}
+  const live=animating();if(live)animT=now/1000;
+  if(dirty||((selected||live)&&now-lastDraw>animGap)){const t0=performance.now();draw(now);const dt=performance.now()-t0;drawAvg=drawAvg*.9+dt*.1;animGap=Math.min(250,Math.max(32,drawAvg*3));dirty=false;lastDraw=now;}
+  requestAnimationFrame(frame);
+}
+
+/* ================= boot ================= */
+buildLayerButtons;applyLang();refreshUI();layout();
+(async()=>{
+  const lt=document.getElementById('loadTxt');
+  if(!gl){lt.textContent=S('nogl');return;}
+  try{await loadModel();}catch(e){lt.textContent=S('err');console.error(e);return;}
+  const bh=BODY.max[1]-BODY.min[1];cam.target=[(BODY.min[0]+BODY.max[0])/2,BODY.min[1]+bh*.5,(BODY.min[2]+BODY.max[2])/2];
+  cam.target[1]-=bh*.035;cam.dist=bh*.5/Math.tan(cam.fov/2)*1.22;HOME={target:cam.target.slice(),pitch:cam.pitch,dist:cam.dist};
+  buildLayerButtons();applyLang();refreshUI();layout();
+  document.getElementById('loading').style.opacity=0;
+  window.__ready=true;requestAnimationFrame(frame);
+})();
+</script>
+<script>if('serviceWorker' in navigator){addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}</script>
+</body>
+</html>
