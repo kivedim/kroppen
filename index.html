@@ -21,6 +21,7 @@
   --font-body:"Source Sans 3", system-ui, -apple-system, sans-serif;
   color-scheme:light;
 }
+[hidden]{display:none!important;}
 html,body{height:100%;margin:0;}
 body{background:radial-gradient(120% 80% at 50% 38%, var(--ground) 0%, var(--ground-2) 100%);color:var(--ink);font-family:var(--font-body);overflow:hidden;-webkit-tap-highlight-color:transparent;}
 #scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;}
@@ -57,17 +58,25 @@ body{background:radial-gradient(120% 80% at 50% 38%, var(--ground) 0%, var(--gro
 .card h2{font:800 28px/1.05 var(--font-display);margin:0;text-wrap:balance;}
 .card .desc{margin:8px 0 10px;font-size:16px;line-height:1.5;}
 .card .fun{font-size:15px;line-height:1.5;color:var(--ink-dim);margin:0 0 12px;padding-left:10px;border-left:3px solid var(--warm);}
-.actions{display:flex;gap:8px;flex-wrap:wrap;}
-.actions button{flex:1;min-width:140px;font:600 15px/1 var(--font-body);padding:12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;}
+.actions{display:grid;grid-template-columns:44px repeat(3,minmax(0,1fr)) 44px;gap:6px;}
+.actions button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:0;min-height:56px;font:600 12px/1.1 var(--font-body);padding:6px 4px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;}
+.actions button svg{width:26px;height:26px;}
+.actions button.nav{background:var(--ground);}
 .actions button[aria-pressed="true"]{background:var(--warm);color:#fff;border-color:var(--warm);}
+.lyr.showall{border-color:var(--warm);color:var(--warm);}
+.lyr.showall svg{filter:none;opacity:1;}
 .layers{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
 .layers::-webkit-scrollbar{display:none;}
-.lyr{flex:none;display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink-dim);font:600 14px/1 var(--font-body);cursor:pointer;}
-.lyr .box{width:16px;height:16px;border-radius:5px;border:2px solid currentColor;display:grid;place-items:center;font-size:11px;line-height:1;}
-.lyr[aria-pressed="true"]{color:var(--ink);border-color:rgba(29,42,51,.4);background:#fff;}
-.lyr[aria-pressed="true"] .box{background:var(--c);border-color:rgba(0,0,0,.35);color:#1d2a33;}
-.lyr[aria-pressed="true"] .box::after{content:"✓";font-weight:700;}
+.lyr{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:66px;padding:7px 8px 6px;border-radius:14px;border:2px solid var(--line);background:var(--panel);color:var(--ink-dim);font:600 12px/1.1 var(--font-body);cursor:pointer;}
+.lyr svg{width:30px;height:30px;filter:grayscale(1);opacity:.45;transition:opacity .15s,filter .15s;}
+.lyr[aria-pressed="true"]{color:var(--ink);border-color:var(--c);background:#fff;}
+.lyr[aria-pressed="true"] svg{filter:none;opacity:1;}
 .lyr.xray{border-style:dashed;}
+.fav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:8px 0 4px;}
+.fav button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 4px;border-radius:14px;border:1px solid var(--line);background:#fff;color:var(--ink);font:600 13px/1.1 var(--font-body);cursor:pointer;min-width:0;}
+.fav svg{width:40px;height:40px;}
+.list h3 svg{width:20px;height:20px;flex:none;}
+.ibtn svg{vertical-align:-4px;}
 .loading{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;transition:opacity .5s;}
 .loading div{display:flex;flex-direction:column;align-items:center;gap:10px;font:600 16px var(--font-display);color:var(--ink-dim);}
 .loading .bar{width:180px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;}
@@ -85,7 +94,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   <div class="topwrap">
     <div class="top">
       <h1 id="ttl">Kroppen</h1>
-      <button class="ibtn" id="listBtn" aria-expanded="false">☰ Delar</button>
+      <button class="ibtn" id="listBtn" aria-expanded="false">Delar</button>
       <button class="ibtn" id="home" aria-label="Visa hela kroppen">⌂</button>
       <button class="ibtn live" id="live" aria-pressed="true" aria-label="Hjärtslag och andning"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="currentColor"/></svg></button>
       <div class="lang" role="group" aria-label="Språk / Language"><button id="lang-sv" aria-pressed="true">SV</button><button id="lang-en" aria-pressed="false">EN</button></div>
@@ -394,13 +403,39 @@ const LAT={skin:'Cutis',hair:'Capilli',muscles:'Musculi',pectoralis:'Pectoralis 
  ['gutArt','Magens och tarmarnas artärer','Tummy arteries'],['renalArt','Njurartärerna','Kidney arteries'],['legArt','Benens artärer','Leg arteries'],['armArt','Armarnas artärer','Arm arteries'],
  ['brainArt','Hjärnans artärer','Brain arteries'],['legVein','Benens vener','Leg veins'],['armVein','Armarnas vener','Arm veins'],['eyeMuscles','Ögonmusklerna','Eye muscles']
 ].forEach(([id,sv,en])=>{if(INFO[id]){INFO[id].sv[0]=sv;INFO[id].en[0]=en;}});
+SYS.region=['Kroppsdelar','Body parts'];
+Object.assign(INFO,{
+ skinHead:{sys:'region',sv:['Huvudet','I huvudet finns hjärnan, och här sitter ögon, öron, näsa och mun.','Hos en bebis är huvudet ungefär en fjärdedel av hela kroppen. Hos en vuxen är det bara en åttondel.'],
+  en:['Head','The head holds the brain, and it has the eyes, ears, nose and mouth.','A baby’s head is about a quarter of its whole body. An adult’s is only about an eighth.']},
+ skinNeck:{sys:'region',sv:['Halsen','Halsen bär upp huvudet. Inuti går luftstrupen, matstrupen och stora blodkärl.','Både du och en giraff har sju kotor i halsen.'],
+  en:['Neck','The neck holds up the head. Inside are the windpipe, the food pipe and big blood vessels.','You and a giraffe both have seven bones in your neck.']},
+ skinChest:{sys:'region',sv:['Bröstet','Under bröstet skyddar revbenen hjärtat och lungorna.','Lägg handen på bröstet, så kan du känna hjärtat slå.'],
+  en:['Chest','Under the chest the ribs protect the heart and lungs.','Put your hand on your chest and you can feel your heart beat.']},
+ skinBelly:{sys:'region',sv:['Magen','I magen ligger magsäcken, tarmarna, levern och njurarna.','Naveln är där navelsträngen satt när du var en bebis i mammas mage.'],
+  en:['Belly','Inside the belly are the stomach, intestines, liver and kidneys.','Your belly button is where the umbilical cord was when you were a baby in your mum’s tummy.']},
+ skinBack:{sys:'region',sv:['Ryggen','Längs ryggen går ryggraden, och starka muskler håller dig rak.','Ryggraden består av över 30 kotor som ligger staplade på varandra.'],
+  en:['Back','The spine runs down the back, and strong muscles keep you upright.','The spine is made of more than 30 bones stacked on top of each other.']},
+ skinBottom:{sys:'region',sv:['Rumpan','Rumpan är full av stora muskler som man använder när man går, springer och hoppar.','Den största muskeln i hela kroppen sitter i rumpan!'],
+  en:['Bottom','Your bottom is full of big muscles you use to walk, run and jump.','The biggest muscle in your whole body is in your bottom!']},
+ skinArm:{sys:'region',sv:['Armarna','Varje arm har en överarm och en underarm som möts i armbågen.','Armbågen böjs som ett gångjärn på en dörr.'],
+  en:['Arms','Each arm has an upper arm and a forearm that meet at the elbow.','The elbow bends like the hinge on a door.']},
+ skinHand:{sys:'region',sv:['Händerna','Händerna kan greppa, känna och peka. Varje hand har fem fingrar.','Varje hand har 27 ben, och fingertopparna hör till de känsligaste ställena på hela kroppen.'],
+  en:['Hands','Hands can grab, feel and point. Each hand has five fingers.','Each hand has 27 bones, and your fingertips are some of the most sensitive spots on your body.']},
+ skinLeg:{sys:'region',sv:['Benen','Benen bär hela kroppen. De har lår, knä och underben.','Lårbenet är det längsta benet i hela kroppen.'],
+  en:['Legs','Your legs carry your whole body. They have a thigh, a knee and a lower leg.','The thighbone is the longest bone in your whole body.']},
+ skinFoot:{sys:'region',sv:['Fötterna','Fötterna bär kroppen och hjälper dig att hålla balansen.','Fötterna har tillsammans 52 ben. Det är ungefär en fjärdedel av alla ben i kroppen.'],
+  en:['Feet','Your feet carry your body and help you keep your balance.','Your feet have 52 bones together. That is about a quarter of all the bones in your body.']},
+ skinPenis:{sys:'region',sv:['Snoppen','Snoppen är en kroppsdel som pojkar och män har mellan benen. Genom den kommer kisset ut från urinblåsan. Under snoppen sitter pungen med testiklarna.','Flickor och kvinnor har en snippa i stället. Båda är helt vanliga kroppsdelar med egna namn, precis som armar och ben.'],
+  en:['Penis','The penis is a body part boys and men have between their legs. Pee comes out through it from the bladder. Below it is the scrotum with the testicles.','Girls and women have a vulva instead. Both are ordinary body parts with their own names, just like arms and legs.']}
+});
+Object.assign(LAT,{skinHead:'Caput',skinNeck:'Collum',skinChest:'Thorax',skinBelly:'Abdomen',skinBack:'Dorsum',skinBottom:'Nates',skinArm:'Membrum superius',skinHand:'Manus',skinLeg:'Membrum inferius',skinFoot:'Pes',skinPenis:'Penis'});
 
 const STR={
- sv:{title:'Kroppen',parts:'☰ Delar',home:'Visa hela kroppen',xray:'Genomskinlig',hint:'Dra för att snurra · Nyp för att zooma · Tryck på en del',
-  load:'Laddar kroppen…',read:'Läs upp',live:'Hjärtslag och andning',only:'Visa bara denna',back:'Hela kroppen',nogl:'Din webbläsare saknar stöd för 3D-grafik (WebGL).',err:'Kunde inte ladda 3D-modellen. Kontrollera nätet och ladda om sidan.',
+ sv:{title:'Kroppen',parts:'Delar',home:'Visa hela kroppen',xray:'Genomskinlig',hint:'Dra för att snurra · Nyp för att zooma · Tryck på en del',
+  load:'Laddar kroppen…',read:'Läs upp',live:'Hjärtslag och andning',only:'Bara denna',back:'Hela kroppen',hide:'Dölj',showall:'Visa alla',prev:'Föregående',next:'Nästa',nogl:'Din webbläsare saknar stöd för 3D-grafik (WebGL).',err:'Kunde inte ladda 3D-modellen. Kontrollera nätet och ladda om sidan.',
   credit:'3D-modeller: BodyParts3D, © Database Center for Life Science (DBCLS), licens CC BY-SA 2.1 JP. Förenklade och färgsatta för appen. Lungorna och ryggmärgen finns inte i BodyParts3D och är framräknade utifrån luftvägar, kärl och ryggrad.'},
- en:{title:'The Body',parts:'☰ Parts',home:'Show the whole body',xray:'See-through',hint:'Drag to spin · Pinch to zoom · Tap a part',
-  load:'Loading the body…',read:'Read aloud',live:'Heartbeat and breathing',only:'Show only this',back:'Whole body',nogl:'Your browser doesn’t support 3D graphics (WebGL).',err:'Couldn’t load the 3D model. Check your connection and reload.',
+ en:{title:'The Body',parts:'Parts',home:'Show the whole body',xray:'See-through',hint:'Drag to spin · Pinch to zoom · Tap a part',
+  load:'Loading the body…',read:'Read aloud',live:'Heartbeat and breathing',only:'Only this',back:'Whole body',hide:'Hide',showall:'Show all',prev:'Previous',next:'Next',nogl:'Your browser doesn’t support 3D graphics (WebGL).',err:'Couldn’t load the 3D model. Check your connection and reload.',
   credit:'3D models: BodyParts3D, © Database Center for Life Science (DBCLS), license CC BY-SA 2.1 JP. Simplified and recoloured for this app. The lungs and spinal cord are not in BodyParts3D and were reconstructed from the airways, vessels and spine.'}
 };
 let lang='sv';
@@ -513,7 +548,8 @@ async function loadModel(){
     PARTS[p.id]={id:p.id,layer:p.layer,color:hex(p.color),hexc:p.color,vb,nb,ib,n:p.ni,type:p.u32?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,center:p.center,bmin:p.bmin,bmax:p.bmax,pick:0};
   });
   ORDER=Object.keys(PARTS);ORDER.forEach((id,i)=>PARTS[id].pick=i+1);setupAnim();
-  const sk=PARTS.skin||PARTS[ORDER[0]];BODY={min:sk.bmin,max:sk.bmax};
+  const sk=ORDER.filter(id=>PARTS[id].layer==='skin');const bb=(sk.length?sk:ORDER).map(id=>PARTS[id]);
+  BODY={min:[0,1,2].map(k=>Math.min(...bb.map(p=>p.bmin[k]))),max:[0,1,2].map(k=>Math.max(...bb.map(p=>p.bmax[k])))};
 }
 
 /* ================= camera ================= */
@@ -529,8 +565,10 @@ const layerOn={skin:true,muscle:false,skeleton:true,organs:true,nerves:false,art
 let xray=true,selected=null,isolate=null;
 try{const s=JSON.parse(localStorage.getItem('layers2')||'null');if(s){Object.assign(layerOn,s.on||{});xray=s.xray!==false;}}catch(e){}
 function save(){try{localStorage.setItem('layers2',JSON.stringify({on:layerOn,xray}));}catch(e){}}
-function visible(p){return isolate?p.id===isolate:layerOn[p.layer];}
-function ghost(p){if(isolate||!xray)return false;if(p.layer==='skin')return true;
+const hiddenSet=new Set();try{(JSON.parse(localStorage.getItem('hidden')||'[]')).forEach(id=>hiddenSet.add(id));}catch(e){}
+function saveHidden(){try{localStorage.setItem('hidden',JSON.stringify([...hiddenSet]));}catch(e){}}
+function visible(p){return isolate?p.id===isolate:(layerOn[p.layer]&&!hiddenSet.has(p.id));}
+function ghost(p){if(isolate||!xray)return false;if(selected===p.id)return false;if(p.layer==='skin')return true;
   if(selected&&p.id!==selected)return true;if(p.layer==='muscle')return !(selected&&PARTS[selected].layer==='muscle')&&(layerOn.skeleton||layerOn.organs||layerOn.nerves||layerOn.arteries||layerOn.veins);return false;}
 
 /* ================= render ================= */
@@ -603,15 +641,75 @@ function pickAt(x,y){
   return id?ORDER[id-1]:null;
 }
 
+/* ================= icons ================= */
+const SVG=(b,extra='')=>'<svg viewBox="0 0 24 24" aria-hidden="true" '+extra+'>'+b+'</svg>';
+const INK='#1d2a33';
+const ICON={
+ skin:SVG('<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11V4a1.5 1.5 0 0 1 3 0v7V5a1.5 1.5 0 0 1 3 0v8 1.5-3a1.5 1.5 0 0 1 3 0V15a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-2.7L4.3 15.6a1.6 1.6 0 0 1 2.6-1.9L8 15.3z" fill="#e8b896" stroke="'+INK+'" stroke-width="1.3" stroke-linejoin="round"/>'),
+ muscle:SVG('<path d="M3.5 20.5c0-6 2-9.5 5.5-11.5l.8-4.5h4.4l-.9 4.2c3.4.1 6.6 2.3 7.4 5.4.9 3.9-2.7 6.4-6.7 6.4z" fill="#c9524b" stroke="'+INK+'" stroke-width="1.3" stroke-linejoin="round"/><path d="M9 14c2-1.5 4-1.6 6 0" stroke="#7d2b26" stroke-width="1.2" fill="none" stroke-linecap="round"/>'),
+ skeleton:SVG('<path d="M8.6 7.2l8.2 8.2" stroke="'+INK+'" stroke-width="5.2" stroke-linecap="round"/><path d="M8.6 7.2l8.2 8.2" stroke="#efe6d2" stroke-width="3" stroke-linecap="round"/><circle cx="5.6" cy="7.4" r="2.5" fill="#efe6d2" stroke="'+INK+'" stroke-width="1.3"/><circle cx="7.4" cy="5.6" r="2.5" fill="#efe6d2" stroke="'+INK+'" stroke-width="1.3"/><circle cx="16.6" cy="18.4" r="2.5" fill="#efe6d2" stroke="'+INK+'" stroke-width="1.3"/><circle cx="18.4" cy="16.6" r="2.5" fill="#efe6d2" stroke="'+INK+'" stroke-width="1.3"/>'),
+ organs:SVG('<path d="M9 2.8v4c0 2-4.2 3-4.2 8.2a6.2 6.2 0 0 0 11.4 3.2c1-2 4-2 4-5.2 0-3-3-4.2-5.2-3.1-1 .5-2-.1-2-2.1v-5" fill="#e09482" stroke="'+INK+'" stroke-width="1.3" stroke-linejoin="round"/>'),
+ nerves:SVG('<path d="M12 2.5v7m0 0l-5 4.5m5-4.5l5 4.5M7 14l-2.5 7M7 14l2.5 7M17 14l-2.5 7M17 14l2.5 7M12 9.5v11" stroke="#d8ad1c" stroke-width="2" fill="none" stroke-linecap="round"/>'),
+ arteries:SVG('<path d="M12 2.5s6.5 7.3 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 9.8 12 2.5 12 2.5z" fill="#e0413f" stroke="'+INK+'" stroke-width="1.3"/><path d="M9 14.5a3 3 0 0 0 3 3" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".7"/>'),
+ veins:SVG('<path d="M12 2.5s6.5 7.3 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 9.8 12 2.5 12 2.5z" fill="#4d72e0" stroke="'+INK+'" stroke-width="1.3"/><path d="M9 14.5a3 3 0 0 0 3 3" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".7"/>'),
+ xray:SVG('<path d="M1.8 12S5.8 5 12 5s10.2 7 10.2 7-4 7-10.2 7S1.8 12 1.8 12z" fill="#e7f6f5" stroke="'+INK+'" stroke-width="1.3"/><circle cx="12" cy="12" r="3.6" fill="#0f7c78"/><circle cx="13.2" cy="10.8" r="1.1" fill="#fff"/>'),
+ grid:SVG('<g fill="currentColor"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></g>','width="18" height="18"'),
+ heart:SVG('<path d="M12 21s-8.5-5.4-8.5-11.3A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.5 2.7C20.5 15.6 12 21 12 21z" fill="#c03a43" stroke="'+INK+'" stroke-width="1.3"/><path d="M7 9.5a2.3 2.3 0 0 1 2-1.6" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".7"/>'),
+ lungs:SVG('<path d="M12 2.5v8.5m0-3l-2 2m2-2l2 2" stroke="#9bb3b8" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M10 9.5C8 8 4.8 9.8 3.7 15.2c-.7 3.3.2 5.6 2.4 5.6 3.5 0 4.6-2.4 4.6-5.6z" fill="#efb3b6" stroke="'+INK+'" stroke-width="1.3"/><path d="M14 9.5c2-1.5 5.2.3 6.3 5.7.7 3.3-.2 5.6-2.4 5.6-3.5 0-4.6-2.4-4.6-5.6z" fill="#efb3b6" stroke="'+INK+'" stroke-width="1.3"/>'),
+ brain:SVG('<path d="M9 3.8a3 3 0 0 0-3 2.8 3 3 0 0 0-2.2 4.6 3 3 0 0 0 1.4 5 3 3 0 0 0 4 3.3h5.6a3 3 0 0 0 4-3.3 3 3 0 0 0 1.4-5 3 3 0 0 0-2.2-4.6 3 3 0 0 0-3-2.8 3 3 0 0 0-3 1.3 3 3 0 0 0-3-1.3z" fill="#eaa9b2" stroke="'+INK+'" stroke-width="1.3"/><path d="M12 5.2v13.6M8 9c1.3 0 2 .8 2 2M16 9c-1.3 0-2 .8-2 2M7.5 14.5c1.5 0 2.5-.6 2.5-1.8M16.5 14.5c-1.5 0-2.5-.6-2.5-1.8" stroke="#a65d68" stroke-width="1.1" fill="none" stroke-linecap="round"/>'),
+ stomach:null,
+ intestines:SVG('<rect x="3.5" y="4" width="17" height="16.5" rx="6" fill="#eba497" stroke="'+INK+'" stroke-width="1.3"/><path d="M7 9h8a2 2 0 0 1 0 4H9a2 2 0 0 0 0 4h8" stroke="#b5675c" stroke-width="1.6" fill="none" stroke-linecap="round"/>'),
+ liver:SVG('<path d="M2.8 9.6C2.8 7.4 5 6 8.3 6h10.2c2 0 3 1.2 3 3 0 4.4-6.4 9.6-11.6 9.6-4.2 0-7.1-4-7.1-9z" fill="#9a4636" stroke="'+INK+'" stroke-width="1.3"/><circle cx="12.5" cy="15.6" r="1.6" fill="#6f9a3e"/>'),
+ kidneys:SVG('<path d="M8 3.5c-3 0-4.4 3.2-4.4 7.6s1.2 8.4 4.4 8.4c2 0 3-2 2.2-4.1-.8-2-.8-4 0-5.9.9-2.1.6-6-2.2-6z" fill="#9b4038" stroke="'+INK+'" stroke-width="1.3"/><path d="M16 3.5c3 0 4.4 3.2 4.4 7.6s-1.2 8.4-4.4 8.4c-2 0-3-2-2.2-4.1.8-2 .8-4 0-5.9-.9-2.1-.6-6 2.2-6z" fill="#9b4038" stroke="'+INK+'" stroke-width="1.3"/>'),
+ eyes:SVG('<path d="M1.8 12S5.8 5.5 12 5.5 22.2 12 22.2 12 18.2 18.5 12 18.5 1.8 12 1.8 12z" fill="#fff" stroke="'+INK+'" stroke-width="1.3"/><circle cx="12" cy="12" r="4" fill="#2f6f8f"/><circle cx="12" cy="12" r="1.8" fill="'+INK+'"/><circle cx="13.4" cy="10.6" r="1" fill="#fff"/>'),
+ teeth:SVG('<path d="M7 3c-2.2 0-3.4 2-3.4 4.2 0 3 1.2 4 1.7 7S7.2 21 8.6 21c1.6 0 1.6-4.2 3.4-4.2s1.8 4.2 3.4 4.2c1.4 0 2.8-3.8 3.3-6.8s1.7-4 1.7-7C20.4 5 19.2 3 17 3c-2.2 0-3 1.1-5 1.1S9.2 3 7 3z" fill="#fff" stroke="'+INK+'" stroke-width="1.3" stroke-linejoin="round"/>'),
+ skull:SVG('<path d="M12 2.8a8.2 8.2 0 0 0-8.2 8.2c0 3 1.8 4.3 2.9 5.2v3.6h10.6v-3.6c1.1-.9 2.9-2.2 2.9-5.2A8.2 8.2 0 0 0 12 2.8z" fill="#efe6d2" stroke="'+INK+'" stroke-width="1.3" stroke-linejoin="round"/><circle cx="8.8" cy="11.4" r="2.1" fill="'+INK+'"/><circle cx="15.2" cy="11.4" r="2.1" fill="'+INK+'"/><path d="M12 13.6l-1 2h2z" fill="'+INK+'"/><path d="M10 19.8v-2M14 19.8v-2" stroke="'+INK+'" stroke-width="1.1"/>'),
+ spine:SVG('<g fill="#efe6d2" stroke="'+INK+'" stroke-width="1.2"><rect x="8.5" y="2.5" width="7" height="3.4" rx="1.2"/><rect x="8.2" y="7.1" width="7.6" height="3.6" rx="1.2"/><rect x="7.9" y="11.9" width="8.2" height="3.8" rx="1.2"/><rect x="7.6" y="16.9" width="8.8" height="4.2" rx="1.3"/></g>'),
+ biceps:null,
+ bladder:SVG('<path d="M12 4.5c-4.4 0-7.5 3.3-7.5 7.8 0 4.3 3.2 7.7 7.5 7.7s7.5-3.4 7.5-7.7c0-4.5-3.1-7.8-7.5-7.8z" fill="#e6b884" stroke="'+INK+'" stroke-width="1.3"/><path d="M7.5 3.5l2 2.5M16.5 3.5l-2 2.5M12 20v2" stroke="#c29256" stroke-width="1.6" stroke-linecap="round"/>')
+};
+ICON.stomach=ICON.organs;ICON.biceps=ICON.muscle;
+const UI_STROKE='fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"';
+Object.assign(ICON,{
+ prev:SVG('<path d="M15 5l-7 7 7 7" '+UI_STROKE+'/>'),
+ next:SVG('<path d="M9 5l7 7-7 7" '+UI_STROKE+'/>'),
+ only:SVG('<circle cx="12" cy="12" r="8" '+UI_STROKE+'/><circle cx="12" cy="12" r="3.2" fill="currentColor"/>'),
+ hide:SVG('<path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z" '+UI_STROKE+'/><circle cx="12" cy="12" r="2.6" fill="currentColor"/><path d="M4 4l16 16" '+UI_STROKE+'/>'),
+ body:SVG('<circle cx="12" cy="4.5" r="2.4" fill="currentColor"/><path d="M12 8v7m0-7l-5 4m5-4l5 4m-5 3l-3.5 6m3.5-6l3.5 6" '+UI_STROKE+'/>'),
+ showall:SVG('<path d="M2.5 12s3.8-6.5 9.5-6.5S21.5 12 21.5 12 17.7 18.5 12 18.5 2.5 12 2.5 12z" fill="#fff" stroke="#b8403a" stroke-width="1.6"/><circle cx="12" cy="12" r="3.2" fill="#b8403a"/>')
+});
+function siblings(id){const l=PARTS[id].layer;let ids=ORDER.filter(x=>PARTS[x].layer===l&&!hiddenSet.has(x));
+  const reg=ids.filter(x=>BODY_SHAPES[x]!==undefined),rest=ids.filter(x=>BODY_SHAPES[x]===undefined);
+  reg.sort((a,b)=>Object.keys(BODY_SHAPES).indexOf(a)-Object.keys(BODY_SHAPES).indexOf(b));rest.sort((a,b)=>T(a)[0].localeCompare(T(b)[0],lang));return reg.concat(rest);}
+function step(dir){if(!selected)return;const s=siblings(selected);if(!s.length)return;let i=s.indexOf(selected);i=((i<0?0:i+dir)%s.length+s.length)%s.length;
+  const id=s[i];if(isolate)isolate=id;pick(id);}
+const BODY_SHAPES={skinHead:'<circle cx="12" cy="3.6" r="2.5"/>',skinNeck:'<rect x="10.9" y="5.8" width="2.2" height="1.6"/>',
+ skinChest:'<rect x="8" y="7.1" width="8" height="4.1" rx="1.6"/>',skinBelly:'<rect x="8.3" y="11" width="7.4" height="3.7" rx="1"/>',skinBack:'',
+ skinBottom:'<rect x="8.3" y="14.5" width="7.4" height="1.9" rx=".8"/>',skinArm:'<rect x="5.3" y="7.4" width="2.2" height="7" rx="1.1"/><rect x="16.5" y="7.4" width="2.2" height="7" rx="1.1"/>',
+ skinHand:'<circle cx="6.4" cy="15.5" r="1.35"/><circle cx="17.6" cy="15.5" r="1.35"/>',skinLeg:'<rect x="8.6" y="16.2" width="2.9" height="5.4" rx="1.2"/><rect x="12.5" y="16.2" width="2.9" height="5.4" rx="1.2"/>',
+ skinFoot:'<ellipse cx="9.6" cy="22.3" rx="2" ry=".9"/><ellipse cx="14.4" cy="22.3" rx="2" ry=".9"/>',skinPenis:'<ellipse cx="12" cy="16.7" rx=".75" ry="1.1"/>'};
+function bodyIcon(r){let s='';for(const k in BODY_SHAPES){const on=k===r||(r==='skinBack'&&(k==='skinChest'||k==='skinBelly'));
+    s+='<g fill="'+(on?'#e0a07a':'#dfe5e8')+'" stroke="'+(on?INK:'#a9b6bd')+'" stroke-width="'+(on?.9:.6)+'">'+BODY_SHAPES[k]+'</g>';}
+  if(r==='skinBack')s+='<path d="M12 7.6v6.8" stroke="'+INK+'" stroke-width="1" stroke-dasharray="1 .8"/>';
+  return SVG(s);}
+const FAV=[['heart','heart'],['lungs','lungs'],['brain','brain'],['stomach','stomach'],['smallInt','intestines'],['liver','liver'],['kidneys','kidneys'],['eyes','eyes'],['teeth','teeth'],['skull','skull'],['spine','spine'],['biceps','biceps']];
+const SHORT={sv:{heart:'Hjärta',lungs:'Lungor',brain:'Hjärna',stomach:'Mage',smallInt:'Tarmar',liver:'Lever',kidneys:'Njurar',eyes:'Ögon',teeth:'Tänder',skull:'Skalle',spine:'Rygg',biceps:'Muskel'},
+ en:{heart:'Heart',lungs:'Lungs',brain:'Brain',stomach:'Tummy',smallInt:'Guts',liver:'Liver',kidneys:'Kidneys',eyes:'Eyes',teeth:'Teeth',skull:'Skull',spine:'Spine',biceps:'Muscle'}};
+
 /* ================= UI ================= */
 const layersEl=document.getElementById('layers'),cardEl=document.getElementById('card'),hintEl=document.getElementById('hint'),listEl=document.getElementById('list'),listBtn=document.getElementById('listBtn');
 const xBtn=document.createElement('button');xBtn.className='lyr xray';xBtn.style.setProperty('--c','#9ad6d2');const xTxt=document.createTextNode('');
-{const b=document.createElement('span');b.className='box';xBtn.append(b,xTxt);}
-xBtn.onclick=()=>{xray=!xray;save();refreshUI();};layersEl.append(xBtn);
+{const b=document.createElement('span');b.innerHTML=ICON.xray;xBtn.append(b.firstChild,xTxt);}
+xBtn.onclick=()=>{xray=!xray;save();refreshUI();};
+const allBtn=document.createElement('button');allBtn.className='lyr showall';{const b=document.createElement('span');b.innerHTML=ICON.showall;allBtn.append(b.firstChild);}
+const allTxt=document.createTextNode('');allBtn.append(allTxt);allBtn.hidden=true;
+allBtn.onclick=()=>{hiddenSet.clear();saveHidden();refreshUI();};
+layersEl.append(allBtn,xBtn);
 function buildLayerButtons(){LAYERS.forEach(l=>{if(!ORDER.some(id=>PARTS[id].layer===l.id))return;const b=document.createElement('button');b.className='lyr';b.style.setProperty('--c',l.c);
-  const box=document.createElement('span');box.className='box';l.txt=document.createTextNode(l[lang]);b.append(box,l.txt);
+  const box=document.createElement('span');box.innerHTML=ICON[l.id];l.txt=document.createTextNode(l[lang]);b.append(box.firstChild,l.txt);
   b.onclick=()=>{layerOn[l.id]=!layerOn[l.id];if(isolate)isolate=null;save();refreshUI();renderCard();};layersEl.append(b);l.btn=b;});}
-function refreshUI(){LAYERS.forEach(l=>l.btn&&l.btn.setAttribute('aria-pressed',layerOn[l.id]));xBtn.setAttribute('aria-pressed',xray);dirty=true;}
+function refreshUI(){LAYERS.forEach(l=>l.btn&&l.btn.setAttribute('aria-pressed',layerOn[l.id]));xBtn.setAttribute('aria-pressed',xray);
+  allBtn.hidden=hiddenSet.size===0;allTxt.textContent=S('showall')+' ('+hiddenSet.size+')';dirty=true;}
 function sysOf(id){return INFO[id]?SYS[INFO[id].sys][lang==='en'?1:0]:LAYERS.find(l=>l.id===PARTS[id].layer)[lang];}
 function renderCard(){
   stopSpeak();
@@ -626,9 +724,13 @@ function renderCard(){
   sp.onclick=()=>toggleSpeak(selected,sp);head.append(hw,sp);
   const d=document.createElement('p');d.className='desc';d.textContent=desc;
   const act=document.createElement('div');act.className='actions';
-  const iso=document.createElement('button');iso.textContent=S('only');iso.setAttribute('aria-pressed',isolate===selected);iso.onclick=()=>{isolate=isolate===selected?null:selected;refreshUI();renderCard();flyTo(selected);};
-  const back=document.createElement('button');back.textContent=S('back');back.onclick=home;
-  act.append(iso,back);cardEl.append(head,d);
+  const mk=(ic,label,fn,cls)=>{const b=document.createElement('button');b.innerHTML=ICON[ic];if(label){const s=document.createElement('span');s.textContent=label;b.append(s);}else b.setAttribute('aria-label',ic==='prev'?S('prev'):S('next'));if(cls)b.className=cls;b.onclick=fn;return b;};
+  const prev=mk('prev','',()=>step(-1),'nav');
+  const iso=mk('only',S('only'),()=>{isolate=isolate===selected?null:selected;refreshUI();renderCard();flyTo(selected);});iso.setAttribute('aria-pressed',isolate===selected);
+  const hide=mk('hide',S('hide'),()=>{const id=selected;hiddenSet.add(id);saveHidden();if(isolate===id)isolate=null;selected=null;refreshUI();renderCard();});
+  const back=mk('body',S('back'),home);
+  const next=mk('next','',()=>step(1),'nav');
+  act.append(prev,iso,hide,back,next);cardEl.append(head,d);
   if(fun){const f=document.createElement('p');f.className='fun';f.textContent=fun;cardEl.append(f);}
   cardEl.append(act);cardEl.hidden=false;layout();
 }
@@ -646,8 +748,16 @@ function toggleSpeak(id,btn){
     u.onend=done;u.onerror=done;speaking={btn};speechSynthesis.cancel();speechSynthesis.speak(u);}catch(e){done();}
 }
 function renderList(){listEl.innerHTML='';
-  LAYERS.forEach(l=>{const ids=ORDER.filter(id=>PARTS[id].layer===l.id);if(!ids.length)return;
-    const h=document.createElement('h3');const i=document.createElement('i');i.style.background=l.c;h.append(i,document.createTextNode(l[lang]));
+  const fav=document.createElement('div');fav.className='fav';
+  FAV.forEach(([id,ic])=>{if(!PARTS[id])return;const b=document.createElement('button');b.innerHTML=ICON[ic];const s=document.createElement('span');s.textContent=SHORT[lang][id];b.append(s);
+    b.setAttribute('aria-label',T(id)[0]);b.onclick=()=>{toggleList(false);pick(id,true);};fav.append(b);});
+  listEl.append(fav);
+  LAYERS.forEach(l=>{let ids=ORDER.filter(id=>PARTS[id].layer===l.id);if(!ids.length)return;
+    const h=document.createElement('h3');const i=document.createElement('span');i.innerHTML=ICON[l.id];h.append(i.firstChild,document.createTextNode(l[lang]));
+    if(l.id==='skin'){const g=document.createElement('div');g.className='fav';
+      ids.filter(id=>BODY_SHAPES[id]).sort((a,b)=>Object.keys(BODY_SHAPES).indexOf(a)-Object.keys(BODY_SHAPES).indexOf(b)).forEach(id=>{const b=document.createElement('button');b.innerHTML=bodyIcon(id);
+        const s=document.createElement('span');s.textContent=T(id)[0];b.append(s);b.onclick=()=>{toggleList(false);pick(id,true);};g.append(b);});
+      listEl.append(h,g);ids=ids.filter(id=>!BODY_SHAPES[id]);if(!ids.length)return;}
     const wrap=document.createElement('div');wrap.className='items';
     ids.sort((a,b)=>T(a)[0].localeCompare(T(b)[0],lang)).forEach(id=>{const b=document.createElement('button');b.textContent=T(id)[0];b.onclick=()=>{toggleList(false);pick(id,true);};wrap.append(b);});
     listEl.append(h,wrap);});
@@ -656,11 +766,11 @@ function toggleList(open){listEl.hidden=!open;listBtn.setAttribute('aria-expande
 listBtn.onclick=()=>toggleList(listEl.hidden);
 function applyLang(){
   document.documentElement.lang=lang;document.title=lang==='en'?'The Body in 3D':'Kroppen i 3D';
-  document.getElementById('ttl').textContent=S('title');listBtn.textContent=S('parts');hintEl.textContent=S('hint');document.getElementById('loadTxt').textContent=S('load');
+  document.getElementById('ttl').textContent=S('title');listBtn.innerHTML=ICON.grid+' ';listBtn.append(document.createTextNode(S('parts')));hintEl.textContent=S('hint');document.getElementById('loadTxt').textContent=S('load');
   document.getElementById('home').setAttribute('aria-label',S('home'));document.getElementById('live').setAttribute('aria-label',S('live'));
   LAYERS.forEach(l=>l.txt&&(l.txt.textContent=l[lang]));xTxt.textContent=S('xray');
   document.getElementById('lang-sv').setAttribute('aria-pressed',lang==='sv');document.getElementById('lang-en').setAttribute('aria-pressed',lang==='en');
-  renderCard();if(!listEl.hidden)renderList();
+  renderCard();if(!listEl.hidden)renderList();refreshUI();
 }
 ['sv','en'].forEach(l=>document.getElementById('lang-'+l).onclick=()=>{lang=l;try{localStorage.setItem('lang',l);}catch(e){}applyLang();});
 
@@ -676,6 +786,7 @@ function flyTo(id){
   fly={t0:performance.now(),dur:1100,from:{target:cam.target.slice(),yaw:cam.yaw,pitch:cam.pitch,dist:cam.dist},to:{target:c,yaw,pitch:.12,dist}};
 }
 function pick(id,fromList){
+  if(hiddenSet.delete(id))saveHidden();
   selected=id;hideHint();
   if(fromList){const p=PARTS[id];if(!layerOn[p.layer]){layerOn[p.layer]=true;save();}if(p.layer!=='skin'&&layerOn.skin)xray=true;
     if(p.layer!=='muscle'&&p.layer!=='skin'&&layerOn.muscle)xray=true;}
