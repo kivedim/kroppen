@@ -495,9 +495,11 @@ async function loadModel(){
   const meta=await (await fetch('body.json')).json();
   const res=await fetch('body.bin');if(!res.ok)throw new Error('bin');
   const total=+res.headers.get('content-length')||meta.size||0;let buf;
-  if(res.body&&total){const rd=res.body.getReader();const out=new Uint8Array(total);let got=0;
-    for(;;){const {done,value}=await rd.read();if(done)break;out.set(value,got);got+=value.length;bar.style.width=Math.round(got/total*100)+'%';}buf=out.buffer;}
+  if(res.body&&res.body.getReader){const rd=res.body.getReader();const chunks=[];let got=0;
+    for(;;){const {done,value}=await rd.read();if(done)break;chunks.push(value);got+=value.length;if(total)bar.style.width=Math.min(100,Math.round(got/total*100))+'%';}
+    const out=new Uint8Array(got);let o=0;for(const c of chunks){out.set(c,o);o+=c.length;}buf=out.buffer;}
   else buf=await res.arrayBuffer();
+  bar.style.width='100%';
   const [bmin,bmax]=meta.bbox;const sc=[0,1,2].map(i=>(bmax[i]-bmin[i])/65535);
   meta.parts.forEach(p=>{
     const q=new Uint16Array(buf,p.voff,p.nv*3);const pos=new Float32Array(p.nv*3);
