@@ -77,6 +77,19 @@ body{background:radial-gradient(120% 80% at 50% 38%, var(--ground) 0%, var(--gro
 .fav svg{width:40px;height:40px;}
 .list h3 svg{width:20px;height:20px;flex:none;}
 .ibtn svg{vertical-align:-4px;}
+.food{position:fixed;right:max(12px, env(safe-area-inset-right, 0px));top:42%;display:flex;flex-direction:column;gap:10px;z-index:2;}
+.food button{width:62px;height:62px;border-radius:50%;border:2px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 8px rgba(29,42,51,.15);}
+.food button svg{width:40px;height:40px;}
+.jcard .jhead{display:flex;align-items:center;gap:12px;}
+.jcard .jhead svg{width:44px;height:44px;flex:none;}
+.jcard .jtext{font:600 19px/1.35 var(--font-body);margin:0;flex:1;min-width:0;}
+.jdots{display:flex;gap:5px;margin:10px 0 12px;}
+.jdots i{flex:1;height:6px;border-radius:3px;background:var(--line);}
+.jdots i.on{background:var(--accent);}
+.jact{display:flex;gap:8px;}
+.jact button{flex:1;min-height:52px;display:flex;align-items:center;justify-content:center;gap:6px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--ink);font:600 15px/1 var(--font-body);cursor:pointer;}
+.jact button svg{width:24px;height:24px;}
+.jact button.go{background:var(--accent);color:#fff;border-color:var(--accent);}
 .loading{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;transition:opacity .5s;}
 .loading div{display:flex;flex-direction:column;align-items:center;gap:10px;font:600 16px var(--font-display);color:var(--ink-dim);}
 .loading .bar{width:180px;height:6px;border-radius:3px;background:var(--line);overflow:hidden;}
@@ -90,6 +103,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 <body>
 <canvas id="scene" aria-label="3D-modell av människokroppen"></canvas>
 <div class="loading" id="loading"><div><span id="loadTxt">Laddar kroppen…</span><span class="bar"><span id="loadBar"></span></span><small>BodyParts3D © DBCLS · CC BY-SA</small></div></div>
+<div class="food" id="food"><button id="feedApple" aria-label="Ge ett äpple"></button><button id="feedWater" aria-label="Ge vatten"></button></div>
 <div class="ui">
   <div class="topwrap">
     <div class="top">
@@ -432,10 +446,10 @@ Object.assign(LAT,{skinHead:'Caput',skinNeck:'Collum',skinChest:'Thorax',skinBel
 
 const STR={
  sv:{title:'Kroppen',parts:'Delar',home:'Visa hela kroppen',xray:'Genomskinlig',hint:'Dra för att snurra · Nyp för att zooma · Tryck på en del',
-  load:'Laddar kroppen…',read:'Läs upp',live:'Hjärtslag och andning',only:'Bara denna',back:'Hela kroppen',hide:'Dölj',showall:'Visa alla',prev:'Föregående',next:'Nästa',nogl:'Din webbläsare saknar stöd för 3D-grafik (WebGL).',err:'Kunde inte ladda 3D-modellen. Kontrollera nätet och ladda om sidan.',
+  load:'Laddar kroppen…',read:'Läs upp',live:'Hjärtslag och andning',only:'Bara denna',back:'Hela kroppen',hide:'Dölj',showall:'Visa alla',prev:'Föregående',next:'Nästa',apple:'Ge ett äpple',water:'Ge vatten',pause:'Pausa',play:'Fortsätt',stop:'Sluta',again:'Igen',done:'Klar',nogl:'Din webbläsare saknar stöd för 3D-grafik (WebGL).',err:'Kunde inte ladda 3D-modellen. Kontrollera nätet och ladda om sidan.',
   credit:'3D-modeller: BodyParts3D, © Database Center for Life Science (DBCLS), licens CC BY-SA 2.1 JP. Förenklade och färgsatta för appen. Lungorna och ryggmärgen finns inte i BodyParts3D och är framräknade utifrån luftvägar, kärl och ryggrad.'},
  en:{title:'The Body',parts:'Parts',home:'Show the whole body',xray:'See-through',hint:'Drag to spin · Pinch to zoom · Tap a part',
-  load:'Loading the body…',read:'Read aloud',live:'Heartbeat and breathing',only:'Only this',back:'Whole body',hide:'Hide',showall:'Show all',prev:'Previous',next:'Next',nogl:'Your browser doesn’t support 3D graphics (WebGL).',err:'Couldn’t load the 3D model. Check your connection and reload.',
+  load:'Loading the body…',read:'Read aloud',live:'Heartbeat and breathing',only:'Only this',back:'Whole body',hide:'Hide',showall:'Show all',prev:'Previous',next:'Next',apple:'Give an apple',water:'Give water',pause:'Pause',play:'Play',stop:'Stop',again:'Again',done:'Done',nogl:'Your browser doesn’t support 3D graphics (WebGL).',err:'Couldn’t load the 3D model. Check your connection and reload.',
   credit:'3D models: BodyParts3D, © Database Center for Life Science (DBCLS), license CC BY-SA 2.1 JP. Simplified and recoloured for this app. The lungs and spinal cord are not in BodyParts3D and were reconstructed from the airways, vessels and spine.'}
 };
 let lang='sv';
@@ -527,7 +541,7 @@ function ensureEdgeFB(W,H){if(eFB&&eW===W&&eH===H)return;eW=W;eH=H;eFB=eFB||gl.c
 const PARTS={};let ORDER=[];let BODY={min:[0,0,0],max:[1,1,1]};
 async function loadModel(){
   const bar=document.getElementById('loadBar');
-  const meta=await (await fetch('body.json',{cache:'no-cache'})).json();
+  const meta=await (await fetch('body.json',{cache:'no-cache'})).json();JOURNEYS=meta.journeys||null;
   const res=await fetch('body.bin',{cache:'no-cache'});if(!res.ok)throw new Error('bin');
   const total=+res.headers.get('content-length')||meta.size||0;let buf;
   if(res.body&&res.body.getReader){const rd=res.body.getReader();const chunks=[];let got=0;
@@ -567,8 +581,9 @@ try{const s=JSON.parse(localStorage.getItem('layers2')||'null');if(s){Object.ass
 function save(){try{localStorage.setItem('layers2',JSON.stringify({on:layerOn,xray}));}catch(e){}}
 const hiddenSet=new Set();try{(JSON.parse(localStorage.getItem('hidden')||'[]')).forEach(id=>hiddenSet.add(id));}catch(e){}
 function saveHidden(){try{localStorage.setItem('hidden',JSON.stringify([...hiddenSet]));}catch(e){}}
-function visible(p){return isolate?p.id===isolate:(layerOn[p.layer]&&!hiddenSet.has(p.id));}
-function ghost(p){if(isolate||!xray)return false;if(selected===p.id)return false;if(p.layer==='skin')return true;
+let JOURNEYS=null,journey=null;
+function visible(p){if(journey)return p.layer==='skin'||p.layer==='organs'||journey.hlAll.has(p.id);return isolate?p.id===isolate:(layerOn[p.layer]&&!hiddenSet.has(p.id));}
+function ghost(p){if(journey)return !journey.hl.has(p.id);if(isolate||!xray)return false;if(selected===p.id)return false;if(p.layer==='skin')return true;
   if(selected&&p.id!==selected)return true;if(p.layer==='muscle')return !(selected&&PARTS[selected].layer==='muscle')&&(layerOn.skeleton||layerOn.organs||layerOn.nerves||layerOn.arteries||layerOn.veins);return false;}
 
 /* ================= render ================= */
@@ -712,6 +727,7 @@ function refreshUI(){LAYERS.forEach(l=>l.btn&&l.btn.setAttribute('aria-pressed',
   allBtn.hidden=hiddenSet.size===0;allTxt.textContent=S('showall')+' ('+hiddenSet.size+')';dirty=true;}
 function sysOf(id){return INFO[id]?SYS[INFO[id].sys][lang==='en'?1:0]:LAYERS.find(l=>l.id===PARTS[id].layer)[lang];}
 function renderCard(){
+  if(journey)return;cardEl.classList.remove('jcard');
   stopSpeak();
   if(!selected){cardEl.hidden=true;layout();return;}
   const [name,desc,fun]=T(selected);cardEl.innerHTML='';
@@ -770,7 +786,8 @@ function applyLang(){
   document.getElementById('home').setAttribute('aria-label',S('home'));document.getElementById('live').setAttribute('aria-label',S('live'));
   LAYERS.forEach(l=>l.txt&&(l.txt.textContent=l[lang]));xTxt.textContent=S('xray');
   document.getElementById('lang-sv').setAttribute('aria-pressed',lang==='sv');document.getElementById('lang-en').setAttribute('aria-pressed',lang==='en');
-  renderCard();if(!listEl.hidden)renderList();refreshUI();
+  if(journey)renderJourneyCard();else renderCard();if(!listEl.hidden)renderList();refreshUI();
+  document.getElementById('feedApple').setAttribute('aria-label',S('apple'));document.getElementById('feedWater').setAttribute('aria-label',S('water'));
 }
 ['sv','en'].forEach(l=>document.getElementById('lang-'+l).onclick=()=>{lang=l;try{localStorage.setItem('lang',l);}catch(e){}applyLang();});
 
@@ -810,12 +827,98 @@ canvas.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)re
     if(lastPinch){cam.dist=Math.max(.8,Math.min(60,cam.dist*lastPinch.d/d));pan(mx-lastPinch.mx,my-lastPinch.my);}lastPinch={d,mx,my};}
   if(tap&&Math.hypot(e.clientX-tap.x,e.clientY-tap.y)>8){tap=null;hideHint();}dirty=true;});
 function endPtr(e){ptrs.delete(e.pointerId);lastPinch=null;
-  if(tap&&ptrs.size===0&&performance.now()-tap.t<500&&e.type==='pointerup'){const r=canvas.getBoundingClientRect();const id=pickAt(e.clientX-r.left,e.clientY-r.top);if(id)pick(id);}tap=null;}
+  if(tap&&ptrs.size===0&&performance.now()-tap.t<500&&e.type==='pointerup'&&!journey){const r=canvas.getBoundingClientRect();const id=pickAt(e.clientX-r.left,e.clientY-r.top);if(id)pick(id);}tap=null;}
 canvas.addEventListener('pointerup',endPtr);canvas.addEventListener('pointercancel',endPtr);
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 canvas.addEventListener('wheel',e=>{e.preventDefault();fly=null;cam.dist=Math.max(.8,Math.min(60,cam.dist*Math.exp(e.deltaY*.0012)));hideHint();dirty=true;},{passive:false});
 function pan(dx,dy){const e=eye();const f=norm(sub(cam.target,e)),r=norm(cross(f,[0,1,0])),u=cross(r,f);const k=cam.dist*Math.tan(cam.fov/2)*2/canvas.clientHeight;
   cam.target=add(cam.target,add(scl(r,-dx*k),scl(u,dy*k)));}
+
+/* ================= food journeys ================= */
+const JTXT={
+ sv:{mouth:'Mums! Tänderna tuggar äpplet i små bitar, och saliven gör det mjukt.',swallow:'Glupp! Du sväljer, och matstrupen klämmer ner tuggan till magen.',
+  stomach:'I magsäcken blandas maten med magsyra och blir till gröt.',smallInt:'Tunntarmen är jättelång! Här sugs all nyttig näring upp i blodet.',
+  largeInt:'I tjocktarmen tas vattnet tillbaka. Det som blir kvar är bajs!',poop:'Plopp! Bajset kommer ut i toaletten. Från äpple till bajs tar det ungefär ett dygn.',
+  drink:'Klunk, klunk! Du dricker ett glas vatten.',stomachW:'Vattnet åker snabbt igenom magsäcken.',blood:'I tunntarmen sugs vattnet upp i blodet och åker med blodet till njurarna.',
+  kidney:'Njurarna renar blodet. Det som blir över blir kiss.',ureter:'Kisset rinner ner genom urinledaren.',bladder:'Urinblåsan fylls som en ballong. Nu blir man kissnödig!',
+  pee:'Pssss! Kisset kommer ut genom snoppen.',endApple:'Klart! Äpplet har blivit bajs. Vill du ge mer?',endWater:'Klart! Vattnet har blivit kiss. Vill du ge mer?'},
+ en:{mouth:'Yum! Your teeth chew the apple into small bits, and spit makes it soft.',swallow:'Gulp! You swallow, and the food pipe squeezes the bite down to your tummy.',
+  stomach:'In the stomach the food is mixed with stomach acid and turns into mush.',smallInt:'The small intestine is super long! This is where all the good stuff is soaked up into your blood.',
+  largeInt:'In the large intestine the water is taken back. What is left over is poop!',poop:'Plop! The poop comes out into the toilet. From apple to poop takes about a day.',
+  drink:'Glug, glug! You drink a glass of water.',stomachW:'The water zooms quickly through the stomach.',blood:'In the small intestine the water is soaked up into your blood and rides along to the kidneys.',
+  kidney:'The kidneys clean the blood. What is left over becomes pee.',ureter:'The pee trickles down the pee tube.',bladder:'The bladder fills up like a balloon. Now you need to pee!',
+  pee:'Pssss! The pee comes out through the pon ton ton.',endApple:'Done! The apple turned into poop. Want to give more?',endWater:'Done! The water turned into pee. Want to give more?'}};
+Object.assign(ICON,{
+ apple:SVG('<path d="M12 7.2c-1.6-1-4.8-1.4-6.6.8-2 2.4-1.4 7 .6 9.8 1.4 2 3 3.2 4.4 2.6.8-.3 1.4-.3 2.2 0 1.4.6 3-.6 4.4-2.6 2-2.8 2.6-7.4.6-9.8-1.8-2.2-5-1.8-5.6-.8z" fill="#d8352f" stroke="'+INK+'" stroke-width="1.3" stroke-linejoin="round"/><path d="M12 7.4c0-1.6.4-3 1.6-4.2" stroke="'+INK+'" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M13.2 4.6c1.6-1.6 3.8-1.6 4.8-.8-1 1.8-3 2.4-4.8.8z" fill="#5fa83a" stroke="'+INK+'" stroke-width="1.1"/><path d="M7.6 10.4a2.6 2.6 0 0 1 1.6-1.8" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".7"/>'),
+ water:SVG('<path d="M12 2.5s6.5 7.3 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 9.8 12 2.5 12 2.5z" fill="#4fa3e8" stroke="'+INK+'" stroke-width="1.3"/><path d="M9 14.5a3 3 0 0 0 3 3" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".8"/>'),
+ poop:SVG('<path d="M5 19.5h14c1.6 0 2.4-1 2.4-2.2 0-1.4-1.2-2.3-2.4-2.3.8-.4 1.2-1.1 1.2-1.9 0-1.3-1.2-2.1-2.4-2.1.4-.4.6-.9.6-1.5 0-1.4-1.3-2.2-2.6-2.1.2-1.4-.6-3-2.6-3.4.4 1.2-.6 2.2-1.8 2.4-1.4.2-2.6 1-2.6 2.4 0 .4.1.7.3 1-1.4.1-2.5 1-2.5 2.2 0 .7.3 1.2.8 1.6-1.4.1-2.6 1-2.6 2.3 0 1.4 1.1 2.4 2.5 2.4z" fill="#8a5a32" stroke="'+INK+'" stroke-width="1.2" stroke-linejoin="round"/><circle cx="9.6" cy="14.6" r="1.1" fill="#fff"/><circle cx="14.4" cy="14.6" r="1.1" fill="#fff"/><circle cx="9.8" cy="14.8" r=".5" fill="'+INK+'"/><circle cx="14.6" cy="14.8" r=".5" fill="'+INK+'"/><path d="M10 17c1.2.9 2.8.9 4 0" stroke="'+INK+'" stroke-width="1" fill="none" stroke-linecap="round"/>'),
+ pee:SVG('<path d="M12 2.5s6.5 7.3 6.5 11.7a6.5 6.5 0 0 1-13 0C5.5 9.8 12 2.5 12 2.5z" fill="#f0d64a" stroke="'+INK+'" stroke-width="1.3"/><path d="M9 14.5a3 3 0 0 0 3 3" stroke="#fff" stroke-width="1.4" fill="none" stroke-linecap="round" opacity=".8"/>'),
+ pauseI:SVG('<rect x="6" y="5" width="4" height="14" rx="1" fill="currentColor"/><rect x="14" y="5" width="4" height="14" rx="1" fill="currentColor"/>'),
+ playI:SVG('<path d="M7 4.5v15l12-7.5z" fill="currentColor"/>'),
+ stopI:SVG('<path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'),
+ againI:SVG('<path d="M5 12a7 7 0 1 0 2.1-5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><path d="M4 3.5V8h4.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>')
+});
+const foodEl=document.getElementById('food');
+document.getElementById('feedApple').innerHTML=ICON.apple;document.getElementById('feedWater').innerHTML=ICON.water;
+document.getElementById('feedApple').onclick=()=>startJourney('apple');document.getElementById('feedWater').onclick=()=>startJourney('water');
+let ball=null;
+function makeBall(){const P=[],N=[],I=[],S=18,R=24;for(let i=0;i<=S;i++){const a=i/S*Math.PI;for(let j=0;j<=R;j++){const b=j/R*2*Math.PI;const x=Math.sin(a)*Math.cos(b),y=Math.cos(a),z=Math.sin(a)*Math.sin(b);P.push(x,y,z);N.push(x,y,z);}}
+  for(let i=0;i<S;i++)for(let j=0;j<R;j++){const a=i*(R+1)+j,b=a+R+1;I.push(a,b,a+1,b,b+1,a+1);}
+  const vb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(P),gl.STATIC_DRAW);
+  const nb=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,nb);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(N),gl.STATIC_DRAW);
+  const ib=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ib);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(I),gl.STATIC_DRAW);return{vb,nb,ib,n:I.length};}
+function polyLen(pts){const c=[0];for(let i=1;i<pts.length;i++)c.push(c[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1],pts[i][2]-pts[i-1][2]));return c;}
+function pointAt(pts,cum,d){if(d<=0)return pts[0].slice();const L=cum[cum.length-1];if(d>=L)return pts[pts.length-1].slice();let i=1;while(cum[i]<d)i++;const t=(d-cum[i-1])/((cum[i]-cum[i-1])||1);return lerp(pts[i-1],pts[i],t);}
+let jSpeech=false;
+function jSay(text){jSpeech=false;if(!journey||journey.mute)return;try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang=lang==='sv'?'sv-SE':'en-GB';const v=voiceFor(lang);if(v)u.voice=v;u.rate=.95;u.pitch=1.08;
+  u.onend=()=>{jSpeech=false;};u.onerror=()=>{jSpeech=false;};jSpeech=true;speechSynthesis.speak(u);}catch(e){jSpeech=false;}}
+function startJourney(kind){
+  if(!JOURNEYS||!JOURNEYS[kind])return;if(!ball)ball=makeBall();
+  stopSpeak();toggleList(false);hideHint();selected=null;isolate=null;renderCard();
+  const steps=JOURNEYS[kind].map(s=>{const cum=polyLen(s.pts);return Object.assign({},s,{cum,len:cum[cum.length-1],hl:new Set(s.hl.filter(id=>PARTS[id]))});});
+  const hlAll=new Set();steps.forEach(s=>s.hl.forEach(id=>hlAll.add(id)));
+  journey={kind,steps,i:-1,t0:0,paused:false,pauseAt:0,hl:new Set(),hlAll,col:hex(steps[0].col),pos:steps[0].pts[0].slice(),scale:1,done:false,mute:false};
+  foodEl.hidden=true;fly=null;cam.pitch=.1;cam.yaw=Math.round(cam.yaw/(2*Math.PI))*2*Math.PI+.35;
+  nextStep(performance.now());
+}
+function nextStep(now){journey.i++;if(journey.i>=journey.steps.length){finishJourney();return;}
+  const s=journey.steps[journey.i];journey.t0=now;journey.hl=s.hl;journey.from=journey.col.slice();
+  journey.speed=s.speed||1.25;journey.minDur=Math.max(s.len/journey.speed,2.2)+(s.churn||0)+.5;
+  renderJourneyCard();jSay(JTXT[lang][s.k]);dirty=true;}
+function finishJourney(){journey.done=true;journey.hl=new Set(journey.steps[journey.steps.length-1].hl);renderJourneyCard();jSay(JTXT[lang][journey.kind==='apple'?'endApple':'endWater']);}
+function stopJourney(){try{speechSynthesis.cancel();}catch(e){}journey=null;foodEl.hidden=false;cardEl.hidden=true;cardEl.classList.remove('jcard');layout();refreshUI();home();}
+function tickJourney(now){
+  const J=journey;if(J.paused||J.done){return;}
+  const s=J.steps[J.i];const el=(now-J.t0)/1000;const travel=Math.min(s.len,el*J.speed);
+  let p=pointAt(s.pts,s.cum,travel);
+  if(s.churn&&travel>=s.len){const w=(el-s.len/J.speed);p=add(p,[Math.sin(w*9)*.06,Math.cos(w*7)*.05,Math.sin(w*5)*.05]);}
+  J.pos=p;const k=Math.min(1,el/1.2);J.col=lerp(J.from,hex(s.col),k);
+  J.scale=s.grow?1+(s.grow-1)*Math.min(1,travel/s.len):Math.max(1,J.scale-.02);
+  const wantD=(s.k==='smallInt'||s.k==='largeInt'||s.k==='blood')?7.5:5.4;
+  cam.target=lerp(cam.target,p,.08);cam.dist+=(wantD-cam.dist)*.04;
+  if(el>=J.minDur&&(!jSpeech||el>J.minDur+9))nextStep(now);
+}
+function drawBall(){if(!journey||!ball)return;const J=journey;const r=.1*J.scale;
+  gl.useProgram(prog);gl.disable(gl.DEPTH_TEST);gl.disable(gl.BLEND);gl.depthMask(true);gl.uniform1f(U.uGhost,0);gl.uniform1f(U.uOut,0);gl.uniform1f(U.uAlpha,1);gl.uniform1f(U.uGlow,0);
+  gl.bindBuffer(gl.ARRAY_BUFFER,ball.vb);gl.vertexAttribPointer(0,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ARRAY_BUFFER,ball.nb);gl.vertexAttribPointer(1,3,gl.FLOAT,false,0,0);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ball.ib);
+  gl.uniform3fv(U.uPC,ZERO);gl.uniform3fv(U.uPT,J.pos);
+  gl.uniform1f(U.uMode,1);gl.uniform3fv(U.uColor,[.11,.15,.19]);const ro=r+Math.max(.012,cam.dist*.0035);gl.uniform3fv(U.uPS,[ro,ro,ro]);gl.drawElements(gl.TRIANGLES,ball.n,gl.UNSIGNED_SHORT,0);
+  gl.uniform1f(U.uMode,0);gl.uniform3fv(U.uColor,J.col);gl.uniform3fv(U.uPS,[r,r,r]);gl.drawElements(gl.TRIANGLES,ball.n,gl.UNSIGNED_SHORT,0);
+  gl.enable(gl.DEPTH_TEST);}
+function renderJourneyCard(){
+  const J=journey;cardEl.innerHTML='';cardEl.classList.add('jcard');
+  const head=document.createElement('div');head.className='jhead';const ic=document.createElement('span');
+  ic.innerHTML=J.done?(J.kind==='apple'?ICON.poop:ICON.pee):(J.kind==='apple'?(J.i>=4?ICON.poop:ICON.apple):(J.i>=4?ICON.pee:ICON.water));
+  const p=document.createElement('p');p.className='jtext';p.textContent=J.done?JTXT[lang][J.kind==='apple'?'endApple':'endWater']:JTXT[lang][J.steps[J.i].k];
+  head.append(ic.firstChild,p);
+  const dots=document.createElement('div');dots.className='jdots';J.steps.forEach((s,i)=>{const d=document.createElement('i');if(i<=J.i||J.done)d.className='on';dots.append(d);});
+  const act=document.createElement('div');act.className='jact';
+  const b=(icon,label,fn,cls)=>{const x=document.createElement('button');x.innerHTML=ICON[icon];x.append(document.createTextNode(label));x.onclick=fn;if(cls)x.className=cls;return x;};
+  if(J.done){act.append(b('apple',S('apple'),()=>startJourney('apple'),'go'),b('water',S('water'),()=>startJourney('water'),'go'),b('stopI',S('done'),stopJourney));}
+  else{const pb=b(J.paused?'playI':'pauseI',J.paused?S('play'):S('pause'),()=>{const now=performance.now();if(J.paused){J.t0+=now-J.pauseAt;J.paused=false;}else{J.paused=true;J.pauseAt=now;try{speechSynthesis.cancel();}catch(e){}jSpeech=false;}renderJourneyCard();});
+    act.append(pb,b('againI',S('again'),()=>startJourney(J.kind)),b('stopI',S('stop'),stopJourney));}
+  cardEl.append(head,dots,act);cardEl.hidden=false;layout();
+}
 
 /* ================= loop ================= */
 function layout(){const W=canvas.clientWidth,H=canvas.clientHeight,r=dpr();if(canvas.width!==Math.round(W*r)||canvas.height!==Math.round(H*r)){canvas.width=Math.round(W*r);canvas.height=Math.round(H*r);}
@@ -826,7 +929,8 @@ const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
 function frame(now){
   if(fly){const k=ease(Math.min(1,(now-fly.t0)/fly.dur));const a=fly.from,b=fly.to;cam.target=lerp(a.target,b.target,k);cam.yaw=a.yaw+(b.yaw-a.yaw)*k;cam.pitch=a.pitch+(b.pitch-a.pitch)*k;cam.dist=a.dist+(b.dist-a.dist)*k;if(k>=1)fly=null;dirty=true;}
   const live=animating();if(live)animT=now/1000;
-  if(dirty||((selected||live)&&now-lastDraw>animGap)){const t0=performance.now();draw(now);const dt=performance.now()-t0;drawAvg=drawAvg*.9+dt*.1;animGap=Math.min(250,Math.max(32,drawAvg*3));dirty=false;lastDraw=now;}
+  if(journey)tickJourney(now);
+  if(dirty||((selected||live||journey)&&now-lastDraw>animGap)){const t0=performance.now();draw(now);drawBall();const dt=performance.now()-t0;drawAvg=drawAvg*.9+dt*.1;animGap=Math.min(250,Math.max(32,drawAvg*3));dirty=false;lastDraw=now;}
   requestAnimationFrame(frame);
 }
 
