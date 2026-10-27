@@ -527,8 +527,8 @@ function ensureEdgeFB(W,H){if(eFB&&eW===W&&eH===H)return;eW=W;eH=H;eFB=eFB||gl.c
 const PARTS={};let ORDER=[];let BODY={min:[0,0,0],max:[1,1,1]};
 async function loadModel(){
   const bar=document.getElementById('loadBar');
-  const meta=await (await fetch('body.json')).json();
-  const res=await fetch('body.bin');if(!res.ok)throw new Error('bin');
+  const meta=await (await fetch('body.json',{cache:'no-cache'})).json();
+  const res=await fetch('body.bin',{cache:'no-cache'});if(!res.ok)throw new Error('bin');
   const total=+res.headers.get('content-length')||meta.size||0;let buf;
   if(res.body&&res.body.getReader){const rd=res.body.getReader();const chunks=[];let got=0;
     for(;;){const {done,value}=await rd.read();if(done)break;chunks.push(value);got+=value.length;if(total)bar.style.width=Math.min(100,Math.round(got/total*100))+'%';}
