@@ -922,7 +922,7 @@ function renderJourneyCard(){
 
 /* ================= loop ================= */
 function layout(){const W=canvas.clientWidth,H=canvas.clientHeight,r=dpr();if(canvas.width!==Math.round(W*r)||canvas.height!==Math.round(H*r)){canvas.width=Math.round(W*r);canvas.height=Math.round(H*r);}
-  cam.shift=cardEl.hidden?0:Math.min(H*.2,cardEl.offsetHeight*.5+20);dirty=true;}
+  cam.shift=cardEl.hidden?0:Math.min(H*.2,cardEl.offsetHeight*.5+20);const fe=document.getElementById('food');if(fe)fe.hidden=!!journey||!cardEl.hidden;dirty=true;}
 addEventListener('resize',layout);
 let lastDraw=0,drawAvg=10,animGap=32;
 const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
