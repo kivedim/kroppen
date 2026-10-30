@@ -49,6 +49,7 @@ body{background:radial-gradient(120% 80% at 50% 38%, var(--ground) 0%, var(--gro
 .list .items{display:flex;flex-wrap:wrap;gap:6px;}
 .list button{padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font:600 14px/1.1 var(--font-body);cursor:pointer;}
 .credit{font-size:12px;line-height:1.4;color:var(--ink-dim);margin:14px 0 0;}
+.credit.ver{margin-top:4px;font-variant-numeric:tabular-nums;}
 .credit a{color:var(--accent);}
 .bottom{display:flex;flex-direction:column;gap:8px;max-width:560px;width:100%;align-self:center;}
 .hint{align-self:center;font-size:14px;color:var(--ink-dim);background:var(--panel);padding:6px 12px;border-radius:999px;transition:opacity .6s;text-align:center;border:1px solid var(--line);}
@@ -102,7 +103,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 </head>
 <body>
 <canvas id="scene" aria-label="3D-modell av människokroppen"></canvas>
-<div class="loading" id="loading"><div><span id="loadTxt">Laddar kroppen…</span><span class="bar"><span id="loadBar"></span></span><small>BodyParts3D © DBCLS · CC BY-SA</small></div></div>
+<div class="loading" id="loading"><div><span id="loadTxt">Laddar kroppen…</span><span class="bar"><span id="loadBar"></span></span><small>BodyParts3D © DBCLS · CC BY-SA · v3.10</small></div></div>
 <div class="food" id="food"><button id="feedApple" aria-label="Ge ett äpple"></button><button id="feedWater" aria-label="Ge vatten"></button></div>
 <div class="ui">
   <div class="topwrap">
@@ -124,6 +125,7 @@ button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 
 <script>
 /* ================= content ================= */
+const APP_VERSION='3.10',APP_DATE='2026-10-30';
 const SYS={skin:['Huden','Integumentary system'],musc:['Muskler','Muscular system'],skel:['Skelettet','Skeletal system'],nerv:['Nervsystemet','Nervous system'],
  resp:['Andningsorganen','Respiratory system'],dig:['Matsmältningen','Digestive system'],circ:['Hjärta och blodomlopp','Circulatory system'],uri:['Urinvägarna','Urinary system'],
  endo:['Hormonsystemet','Endocrine system'],imm:['Immunförsvaret','Immune system'],sense:['Sinnesorgan','Sense organs']};
@@ -777,8 +779,9 @@ function renderList(){listEl.innerHTML='';
     const wrap=document.createElement('div');wrap.className='items';
     ids.sort((a,b)=>T(a)[0].localeCompare(T(b)[0],lang)).forEach(id=>{const b=document.createElement('button');b.textContent=T(id)[0];b.onclick=()=>{toggleList(false);pick(id,true);};wrap.append(b);});
     listEl.append(h,wrap);});
-  const c=document.createElement('p');c.className='credit';c.textContent=S('credit')+' ';const a=document.createElement('a');a.href='https://dbarchive.biosciencedbc.jp/en/bodyparts3d/';a.target='_blank';a.rel='noopener';a.textContent='BodyParts3D ↗';c.append(a);listEl.append(c);}
-function toggleList(open){listEl.hidden=!open;listBtn.setAttribute('aria-expanded',open);if(open)renderList();}
+  const c=document.createElement('p');c.className='credit';c.textContent=S('credit')+' ';const a=document.createElement('a');a.href='https://dbarchive.biosciencedbc.jp/en/bodyparts3d/';a.target='_blank';a.rel='noopener';a.textContent='BodyParts3D ↗';c.append(a);listEl.append(c);
+  const ver=document.createElement('p');ver.className='credit ver';ver.textContent=(lang==='sv'?'Version ':'Version ')+APP_VERSION+' · '+APP_DATE;listEl.append(ver);}
+function toggleList(open){listEl.hidden=!open;listBtn.setAttribute('aria-expanded',open);if(open)renderList();layout();}
 listBtn.onclick=()=>toggleList(listEl.hidden);
 function applyLang(){
   document.documentElement.lang=lang;document.title=lang==='en'?'The Body in 3D':'Kroppen i 3D';
@@ -922,7 +925,7 @@ function renderJourneyCard(){
 
 /* ================= loop ================= */
 function layout(){const W=canvas.clientWidth,H=canvas.clientHeight,r=dpr();if(canvas.width!==Math.round(W*r)||canvas.height!==Math.round(H*r)){canvas.width=Math.round(W*r);canvas.height=Math.round(H*r);}
-  cam.shift=cardEl.hidden?0:Math.min(H*.2,cardEl.offsetHeight*.5+20);const fe=document.getElementById('food');if(fe)fe.hidden=!!journey||!cardEl.hidden;dirty=true;}
+  cam.shift=cardEl.hidden?0:Math.min(H*.2,cardEl.offsetHeight*.5+20);const fe=document.getElementById('food');if(fe)fe.hidden=!!journey||!cardEl.hidden||!listEl.hidden;dirty=true;}
 addEventListener('resize',layout);
 let lastDraw=0,drawAvg=10,animGap=32;
 const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
